@@ -23,7 +23,7 @@ export default async function DashboardPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  const firstName = profile?.name?.split(' ')[0] ?? 'there'
+  const firstName = (profile as { name?: string } | null)?.name?.split(' ')[0] ?? 'there'
 
   return (
     <main className="min-h-screen bg-snap-ink text-snap-white">
