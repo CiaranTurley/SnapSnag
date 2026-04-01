@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-fraunces: 'Fraunces', serif;
+  --font-space-grotesk: 'Space Grotesk', sans-serif;
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0A0F1A;
+  color: #FAFAF8;
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+/* Headings always use Fraunces */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-fraunces), serif;
+  font-weight: 700;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111827;
+}
+::-webkit-scrollbar-thumb {
+  background: #1C2840;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00C9A7;
+}
+
+/* Utility classes */
+@layer components {
+  .btn-primary {
+    @apply bg-snap-teal text-snap-ink font-semibold px-6 py-3 rounded-xl hover:brightness-110 transition-all duration-200 font-grotesk;
+  }
+
+  .btn-secondary {
+    @apply bg-snap-ink-soft text-snap-white font-semibold px-6 py-3 rounded-xl hover:bg-snap-ink-mid transition-all duration-200 font-grotesk border border-white/10;
+  }
+
+  .btn-danger {
+    @apply bg-snap-fail text-white font-semibold px-6 py-3 rounded-xl hover:brightness-110 transition-all duration-200 font-grotesk;
+  }
+
+  .card {
+    @apply bg-snap-ink-mid rounded-2xl p-6 border border-white/5;
+  }
+
+  .card-soft {
+    @apply bg-snap-ink-soft rounded-2xl p-6 border border-white/5;
+  }
+
+  .input {
+    @apply bg-snap-ink-soft border border-white/10 text-snap-white rounded-xl px-4 py-3 w-full font-grotesk focus:ring-2 focus:ring-snap-teal focus:border-transparent outline-none placeholder:text-white/30;
+  }
+
+  .label {
+    @apply text-sm font-medium text-white/70 mb-1 block font-grotesk;
+  }
+
+  .badge-pass {
+    @apply inline-flex items-center gap-1 bg-snap-pass/10 text-snap-pass text-xs font-semibold px-2 py-1 rounded-full;
+  }
+
+  .badge-fail {
+    @apply inline-flex items-center gap-1 bg-snap-fail/10 text-snap-fail text-xs font-semibold px-2 py-1 rounded-full;
+  }
+
+  .badge-amber {
+    @apply inline-flex items-center gap-1 bg-snap-amber/10 text-snap-amber text-xs font-semibold px-2 py-1 rounded-full;
+  }
+
+  .badge-na {
+    @apply inline-flex items-center gap-1 bg-white/10 text-white/50 text-xs font-semibold px-2 py-1 rounded-full;
+  }
+}
