@@ -83,6 +83,35 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
+  // Typewriter effect state
+  const [typedContent, setTypedContent] = useState('')
+  const typeQueueRef = useRef('')
+  const typeRunningRef = useRef(false)
+  const typedAccRef = useRef('')
+
+  // Watch incoming message content and feed typewriter queue
+  useEffect(() => {
+    if (!streaming) return
+    const lastMsg = messages[messages.length - 1]
+    if (!lastMsg || lastMsg.role !== 'assistant') return
+    const newChars = lastMsg.content.slice(typedAccRef.current.length + typeQueueRef.current.length)
+    if (!newChars) return
+    typeQueueRef.current += newChars
+    if (!typeRunningRef.current) {
+      typeRunningRef.current = true
+      const tick = () => {
+        if (typeQueueRef.current.length === 0) { typeRunningRef.current = false; return }
+        const take = Math.min(4, typeQueueRef.current.length)
+        const chars = typeQueueRef.current.slice(0, take)
+        typeQueueRef.current = typeQueueRef.current.slice(take)
+        typedAccRef.current += chars
+        setTypedContent(prev => prev + chars)
+        setTimeout(tick, 18)
+      }
+      tick()
+    }
+  }, [messages, streaming])
+
   // Scroll to latest message
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -141,6 +170,11 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
       setMessages((prev) => [...prev, userMsg])
       setInput('')
       setStreaming(true)
+      // Reset typewriter for new message
+      typeQueueRef.current = ''
+      typedAccRef.current = ''
+      typeRunningRef.current = false
+      setTypedContent('')
 
       // Build history (exclude the opening assistant message if it's first)
       const history = messages
@@ -306,7 +340,9 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
                         : { background: '#1C2840', color: '#FAFAF8' }
                     }
                   >
-                    {msg.content || (streaming && i === messages.length - 1 ? <TypingDots /> : '')}
+                    {streaming && i === messages.length - 1
+                      ? (typedContent || <TypingDots />)
+                      : msg.content}
                   </div>
                   <p
                     className="text-xs mt-1"
