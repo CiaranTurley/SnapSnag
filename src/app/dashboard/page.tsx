@@ -2,6 +2,8 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, FileText, LogOut } from 'lucide-react'
+import CountrySwitcher from '@/components/CountrySwitcher'
+import ReferralCard from '@/components/ReferralCard'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient()
@@ -16,12 +18,24 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
+  type InspectionRow = {
+    id: string
+    property_address_line1: string | null
+    property_city: string | null
+    status: string
+    created_at: string
+    failed_items: number
+    total_items: number
+  }
+
   // Fetch their inspections
-  const { data: inspections } = await supabase
+  const { data: inspectionsRaw } = await supabase
     .from('inspections')
     .select('id, property_address_line1, property_city, status, created_at, failed_items, total_items')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
+
+  const inspections = inspectionsRaw as unknown as InspectionRow[] | null
 
   const firstName = (profile as { name?: string } | null)?.name?.split(' ')[0] ?? 'there'
 
@@ -59,11 +73,43 @@ export default async function DashboardPage() {
                 : `You have ${inspections?.length} inspection${inspections?.length !== 1 ? 's' : ''}.`}
             </p>
           </div>
-          <Link href="/inspection/new" className="btn-primary flex items-center gap-2">
+          <Link href="/inspect/start" className="btn-primary flex items-center gap-2">
             <Plus size={16} />
             <span>New inspection</span>
           </Link>
         </div>
+
+        {/* Resume banner — shown when there's an active in-progress inspection */}
+        {inspections?.filter(i => i.status === 'in_progress').slice(0, 1).map(insp => (
+          <Link
+            key={insp.id}
+            href={`/inspect/${insp.id}/checklist`}
+            className="block card border border-snap-teal/40 bg-snap-teal/5 mb-6 hover:border-snap-teal/70 transition-all"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-grotesk text-xs text-snap-teal font-semibold mb-1 uppercase tracking-wide">
+                  Welcome back — inspection in progress
+                </p>
+                <p className="font-fraunces text-xl font-bold">
+                  {insp.property_address_line1 ?? 'Unnamed property'}
+                  {insp.property_city ? `, ${insp.property_city}` : ''}
+                </p>
+                <p className="font-grotesk text-sm text-white/50 mt-1">
+                  {insp.total_items > 0
+                    ? `${insp.total_items - insp.failed_items} items checked so far`
+                    : 'Tap to continue where you left off'}
+                </p>
+              </div>
+              <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-snap-teal flex items-center justify-center">
+                <span className="text-snap-ink font-bold text-xl">→</span>
+              </div>
+            </div>
+          </Link>
+        ))}
+
+        {/* Referral card */}
+        <ReferralCard />
 
         {/* Inspections list */}
         {!inspections || inspections.length === 0 ? (
@@ -72,10 +118,13 @@ export default async function DashboardPage() {
               <FileText className="text-snap-teal" size={24} />
             </div>
             <h2 className="font-fraunces text-xl font-bold mb-2">No inspections yet</h2>
-            <p className="font-grotesk text-white/50 text-sm mb-6">
+            <p className="font-grotesk text-white/50 text-sm mb-8">
               Create your first inspection to get started.
             </p>
-            <Link href="/inspection/new" className="btn-primary inline-flex items-center gap-2">
+            <div className="mb-6">
+              <CountrySwitcher size="lg" />
+            </div>
+            <Link href="/inspect/start" className="btn-primary inline-flex items-center gap-2">
               <Plus size={16} />
               Start my first inspection
             </Link>
@@ -85,7 +134,11 @@ export default async function DashboardPage() {
             {inspections.map(inspection => (
               <Link
                 key={inspection.id}
-                href={`/inspection/${inspection.id}`}
+                href={
+                  inspection.status === 'completed' || inspection.status === 'paid'
+                    ? `/inspect/${inspection.id}/report`
+                    : `/inspect/${inspection.id}/checklist`
+                }
                 className="card border border-white/5 hover:border-snap-teal/30 transition-all flex items-center justify-between group"
               >
                 <div>
