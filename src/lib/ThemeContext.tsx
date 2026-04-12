@@ -17,7 +17,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system')
+  const [theme, setThemeState] = useState<Theme>('dark')
   const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark')
 
   // Read from localStorage on mount
