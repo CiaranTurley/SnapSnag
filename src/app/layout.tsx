@@ -58,7 +58,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${spaceGrotesk.variable}`}>
+    <html lang="en" data-theme="dark" className={`${fraunces.variable} ${spaceGrotesk.variable}`}>
       <body className="antialiased">
         <ThemeProvider>
           <CountryProvider>
