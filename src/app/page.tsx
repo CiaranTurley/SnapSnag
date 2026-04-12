@@ -12,11 +12,11 @@ import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 // Average repair cost per country (approx local currency equivalent of EUR3,000)
 const AVG_REPAIR_COST: Record<CountryCode, string> = {
-  IE: 'EUR3,000',
-  UK: 'GBP2,600',
-  AU: 'AUD5,000',
-  US: 'USD3,200',
-  CA: 'CAD4,200',
+  IE: '€3,000',
+  UK: '£2,600',
+  AU: 'A$5,000',
+  US: '$3,200',
+  CA: 'C$4,200',
 }
 
 const FLAG_EMOJI: Record<string, string> = {
