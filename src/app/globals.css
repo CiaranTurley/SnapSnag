@@ -31,31 +31,7 @@
   --snap-input-bg:  #1C2840;
 }
 
-/* Light theme — system preference */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --snap-bg:       #F0F4F8;
-    --snap-bg-mid:   #FFFFFF;
-    --snap-bg-soft:  #E2E8F0;
-    --snap-text:     #0D0F1A;
-    --snap-text-dim: rgba(13,15,26,0.5);
-    --snap-border:   rgba(0,0,0,0.08);
-    --snap-card-bg:  #FFFFFF;
-    --snap-input-bg: #F8FAFC;
-  }
-}
-
-/* Light theme — manual override */
-[data-theme="light"] {
-  --snap-bg:       #F0F4F8;
-  --snap-bg-mid:   #FFFFFF;
-  --snap-bg-soft:  #E2E8F0;
-  --snap-text:     #0D0F1A;
-  --snap-text-dim: rgba(13,15,26,0.5);
-  --snap-border:   rgba(0,0,0,0.08);
-  --snap-card-bg:  #FFFFFF;
-  --snap-input-bg: #F8FAFC;
-}
+/* Always dark — no light mode override */
 
 /* ─── Base styles ─────────────────────────────────────────────────────────── */
 html {
@@ -156,10 +132,28 @@ button, [role="button"], a, input[type="submit"], input[type="button"], label[fo
   }
 
   .input {
-    background-color: var(--snap-input-bg);
-    color: var(--snap-text);
-    border: 1px solid var(--snap-border);
-    @apply rounded-xl px-4 py-3 w-full font-grotesk focus:ring-2 focus:ring-snap-teal focus:border-transparent outline-none placeholder:text-white/30;
+    background: #1C2840;
+    color: #FAFAF8;
+    border: 1px solid rgba(255,255,255,0.1);
+    @apply rounded-xl px-4 py-3 w-full font-grotesk outline-none placeholder:text-white/30;
+    transition: border-color 0.2s ease;
+  }
+  .input:focus {
+    border-color: #00C9A7;
+  }
+
+  .error-box {
+    background: rgba(255,77,79,0.1);
+    border: 1px solid rgba(255,77,79,0.25);
+    color: #FF4D4F;
+    @apply rounded-xl px-4 py-3 text-sm font-grotesk;
+  }
+
+  .success-box {
+    background: rgba(0,214,143,0.1);
+    border: 1px solid rgba(0,214,143,0.25);
+    color: #00D68F;
+    @apply rounded-xl px-4 py-3 text-sm font-grotesk;
   }
 
   .label {

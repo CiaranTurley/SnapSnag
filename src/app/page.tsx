@@ -1,27 +1,51 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle, ClipboardList, Smartphone, FileText, X, Menu } from 'lucide-react'
+import { ClipboardList, Smartphone, FileText, X, Menu, Check } from 'lucide-react'
 import { useCountry } from '@/lib/CountryContext'
 import { type CountryCode } from '@/lib/countryConfig'
-import SnapSnagLogo from '@/components/SnapSnagLogo'
-import CountrySwitcher from '@/components/CountrySwitcher'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 
-// Average repair cost per country (approx local currency equivalent of EUR3,000)
+// ─── Data ─────────────────────────────────────────────────────────────────────
+
 const AVG_REPAIR_COST: Record<CountryCode, string> = {
-  IE: '€3,000',
-  UK: '£2,600',
-  AU: 'A$5,000',
-  US: '$3,200',
-  CA: 'C$4,200',
+  IE: '€3,000', UK: '£2,600', AU: 'A$5,000', US: '$3,200', CA: 'C$4,200',
 }
 
-const FLAG_EMOJI: Record<string, string> = {
-  IE: '🇮🇪', GB: '🇬🇧', AU: '🇦🇺', US: '🇺🇸', CA: '🇨🇦',
+const COUNTRIES = [
+  { code: 'IE', flag: '🇮🇪', name: 'Ireland',        domain: 'snapsnag.ie' },
+  { code: 'UK', flag: '🇬🇧', name: 'United Kingdom', domain: 'snapsnag.co.uk' },
+  { code: 'AU', flag: '🇦🇺', name: 'Australia',      domain: 'snapsnag.com.au' },
+  { code: 'US', flag: '🇺🇸', name: 'United States',  domain: 'snapsnagapp.com' },
+  { code: 'CA', flag: '🇨🇦', name: 'Canada',         domain: 'snapsnag.ca' },
+]
+
+// ─── Logo ─────────────────────────────────────────────────────────────────────
+
+function Logo() {
+  return (
+    <Link href="/" className="flex items-center gap-2.5 no-underline">
+      <div style={{
+        width: 36, height: 36, borderRadius: 10, background: '#00C9A7',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="2" y="4" width="16" height="12" rx="2" stroke="white" strokeWidth="1.5" fill="none"/>
+          <circle cx="10" cy="10" r="3" stroke="white" strokeWidth="1.5" fill="none"/>
+          <path d="M13 5.5l1.5-1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M8 9.5l1.5 1.5 2.5-2.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+      <span style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 20 }}>
+        <span style={{ color: '#FAFAF8' }}>Snap</span><span style={{ color: '#00C9A7' }}>Snag</span>
+      </span>
+    </Link>
+  )
 }
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 function HomePageInner() {
   const { countryCode, config } = useCountry()
@@ -30,221 +54,252 @@ function HomePageInner() {
   const [inspectionCount, setInspectionCount] = useState<number | null>(null)
   const [billingAnnual, setBillingAnnual] = useState(false)
 
-  // Capture referral code from ?ref= and store in localStorage
   useEffect(() => {
     const ref = searchParams.get('ref')
     if (ref) localStorage.setItem('snapsnag_ref', ref.toUpperCase())
   }, [searchParams])
 
-  // Live inspection counter — fetches from Supabase, refreshes every 60s
   useEffect(() => {
     const supabase = createSupabaseBrowserClient()
-
     async function fetchCount() {
-      const { count } = await supabase
-        .from('inspections')
-        .select('*', { count: 'exact', head: true })
+      const { count } = await supabase.from('inspections').select('*', { count: 'exact', head: true })
       if (count !== null) setInspectionCount(count)
     }
-
     fetchCount()
     const interval = setInterval(fetchCount, 60_000)
     return () => clearInterval(interval)
   }, [])
 
-  const monthlyPrice = (config.expertMonthly / 100).toFixed(2)
-  const annualTotal  = (config.expertAnnual  / 100).toFixed(2)
-  const annualMonthly = (config.expertAnnual / 100 / 12).toFixed(2)
+  const monthlyPrice  = (config.expertMonthly / 100).toFixed(2)
+  const annualTotal   = (config.expertAnnual  / 100).toFixed(2)
+  const annualMonthly = (config.expertAnnual  / 100 / 12).toFixed(2)
   const annualSaving  = ((config.expertMonthly * 12 - config.expertAnnual) / 100).toFixed(2)
+  const sym = config.symbol
 
   return (
-    <main className="min-h-screen bg-snap-ink text-snap-white">
+    <div style={{ background: '#0A0F1A', minHeight: '100vh', color: '#FAFAF8' }}>
 
-      {/* ── NAVIGATION ───────────────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-snap-ink/95 backdrop-blur-md border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" onClick={() => setMenuOpen(false)}>
-            <SnapSnagLogo size="sm" />
-          </Link>
+      {/* ── NAV ─────────────────────────────────────────────────────────────── */}
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(10,15,26,0.97)', backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)', height: 64,
+        display: 'flex', alignItems: 'center',
+      }}>
+        <div style={{ maxWidth: 1152, margin: '0 auto', padding: '0 24px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Logo />
 
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-4">
-            <Link
-              href="/login"
-              className="font-grotesk text-sm text-white/60 hover:text-white border border-white/20 hover:border-white/40 px-4 py-2 rounded-xl transition-all"
+          {/* Desktop */}
+          <div className="hidden md:flex" style={{ alignItems: 'center', gap: 12 }}>
+            <Link href="/login" style={{
+              fontFamily: 'var(--font-space-grotesk)', fontSize: 14, color: 'rgba(255,255,255,0.7)',
+              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '9px 18px',
+              textDecoration: 'none', transition: 'all 0.2s ease',
+            }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.35)'; (e.target as HTMLElement).style.color = '#fff' }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.15)'; (e.target as HTMLElement).style.color = 'rgba(255,255,255,0.7)' }}
             >
               Expert Login
             </Link>
-            <Link
-              href="/inspect/start"
-              className="btn-primary text-sm py-2 px-5"
-              style={{ boxShadow: '0 0 24px rgba(0,201,167,0.3)' }}
+            <Link href="/inspect/start" style={{
+              fontFamily: 'var(--font-space-grotesk)', fontSize: 14, fontWeight: 700,
+              background: '#00C9A7', color: '#0A0F1A', borderRadius: 10, padding: '9px 20px',
+              textDecoration: 'none', boxShadow: '0 0 24px rgba(0,201,167,0.35)',
+              transition: 'all 0.2s ease',
+            }}
+              onMouseEnter={e => (e.target as HTMLElement).style.filter = 'brightness(1.1)'}
+              onMouseLeave={e => (e.target as HTMLElement).style.filter = 'brightness(1)'}
             >
-              Start Inspection
+              Start Free Inspection
             </Link>
           </div>
 
           {/* Mobile hamburger */}
-          <button
-            className="md:hidden p-2 text-white/70 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle menu"
-          >
+          <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu"
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile menu overlay */}
         {menuOpen && (
-          <div className="md:hidden border-t border-white/5 bg-snap-ink px-6 py-6 flex flex-col gap-4">
-            <Link
-              href="/login"
-              className="font-grotesk text-sm text-white/70 border border-white/20 px-4 py-3 rounded-xl text-center min-h-[44px] flex items-center justify-center"
-              onClick={() => setMenuOpen(false)}
-            >
-              Expert Login
-            </Link>
-            <Link
-              href="/inspect/start"
-              className="btn-primary text-sm text-center min-h-[44px] flex items-center justify-center"
-              onClick={() => setMenuOpen(false)}
-              style={{ boxShadow: '0 0 24px rgba(0,201,167,0.3)' }}
-            >
-              Start Inspection
-            </Link>
+          <div style={{
+            position: 'fixed', inset: 0, top: 64, background: '#0A0F1A', zIndex: 99,
+            display: 'flex', flexDirection: 'column', padding: 24, gap: 12,
+          }}>
+            <Link href="/login" onClick={() => setMenuOpen(false)} style={{
+              fontFamily: 'var(--font-space-grotesk)', fontSize: 15, color: 'rgba(255,255,255,0.7)',
+              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 20px',
+              textDecoration: 'none', textAlign: 'center', minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>Expert Login</Link>
+            <Link href="/inspect/start" onClick={() => setMenuOpen(false)} style={{
+              fontFamily: 'var(--font-space-grotesk)', fontSize: 15, fontWeight: 700,
+              background: '#00C9A7', color: '#0A0F1A', borderRadius: 12, padding: '14px 20px',
+              textDecoration: 'none', textAlign: 'center', minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 24px rgba(0,201,167,0.35)',
+            }}>Start Free Inspection</Link>
           </div>
         )}
       </nav>
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden pt-20">
+      <section style={{ position: 'relative', minHeight: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
         {/* Animated grid */}
-        <div className="hero-grid absolute inset-0 pointer-events-none" />
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          backgroundImage: 'linear-gradient(rgba(0,201,167,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,201,167,0.06) 1px, transparent 1px)',
+          backgroundSize: '64px 64px',
+          animation: 'gridMove 30s linear infinite',
+        }} />
+        {/* Radial glow */}
+        <div style={{
+          position: 'absolute', top: 0, right: 0, width: 600, height: 600, pointerEvents: 'none',
+          background: 'radial-gradient(circle at top right, rgba(0,201,167,0.08) 0%, transparent 70%)',
+        }} />
 
-        {/* Radial teal glow top-right */}
-        <div
-          className="absolute top-0 right-0 w-[600px] h-[600px] pointer-events-none"
-          style={{
-            background: 'radial-gradient(circle at top right, rgba(0,201,167,0.12) 0%, transparent 70%)',
-          }}
-        />
+        <div style={{ position: 'relative', zIndex: 10, maxWidth: 1152, margin: '0 auto', padding: '80px 24px', width: '100%' }}>
+          <div style={{ maxWidth: 640 }}>
 
-        <div className="relative z-10 max-w-6xl mx-auto px-6 py-20 md:py-32">
-          {/* Label */}
-          <p
-            className="font-grotesk font-semibold text-snap-teal mb-5"
-            style={{ fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase' }}
-          >
-            All-in-one inspection tool
-          </p>
-
-          {/* Headline */}
-          <h1
-            className="font-fraunces font-bold leading-tight mb-6 max-w-2xl"
-            style={{ fontSize: 'clamp(36px, 5.5vw, 68px)' }}
-          >
-            Inspect any{' '}
-            <span className="text-snap-teal">new home</span>
-            <br />
-            quickly and{' '}
-            <span className="text-snap-teal">confidently.</span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="font-grotesk text-white/60 mb-8 max-w-xl leading-relaxed" style={{ fontSize: 18 }}>
-            Create professional snagging reports in minutes, whether you're a new homebuyer or an experienced inspector.
-          </p>
-
-          {/* Bullet points */}
-          <ul className="font-grotesk text-white/70 text-sm space-y-3 mb-10">
-            {[
-              <>Spot and document <strong className="text-white">defects</strong> with ease</>,
-              <>Generate <strong className="text-white">comprehensive</strong>, ready-to-share reports</>,
-              <>Save time and <strong className="text-white">money</strong> by streamlining your process</>,
-            ].map((item, i) => (
-              <li key={i} className="flex items-center gap-3">
-                <CheckCircle size={16} className="text-snap-teal flex-shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-12">
-            <Link
-              href="/inspect/start"
-              className="btn-primary text-base px-8 py-4 text-center min-h-[52px] flex items-center justify-center"
-              style={{ boxShadow: '0 0 24px rgba(0,201,167,0.3)', fontWeight: 700 }}
-            >
-              Start Free Inspection
-            </Link>
-            <Link
-              href="#sample"
-              className="btn-secondary text-base px-8 py-4 text-center min-h-[52px] flex items-center justify-center"
-            >
-              See Sample Report
-            </Link>
-          </div>
-
-          {/* Live counter */}
-          <div className="flex items-center gap-3 font-grotesk text-sm text-white/40">
-            <div className="flex gap-1">
-              {(['IE', 'GB', 'AU', 'US', 'CA'] as const).map(f => (
-                <span key={f} className="text-base">{FLAG_EMOJI[f]}</span>
-              ))}
-            </div>
-            {inspectionCount !== null ? (
-              <span>
-                <span className="text-snap-white font-semibold">{inspectionCount.toLocaleString()}</span>{' '}
-                inspections completed across 5 countries
+            {/* Badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center',
+              background: 'rgba(0,201,167,0.1)', border: '1px solid rgba(0,201,167,0.2)',
+              borderRadius: 999, padding: '6px 14px', marginBottom: 24,
+            }}>
+              <span style={{ fontFamily: 'var(--font-space-grotesk)', fontWeight: 600, fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#00C9A7' }}>
+                New Home Inspector
               </span>
-            ) : (
-              <span>Inspections completed across 5 countries</span>
-            )}
+            </div>
+
+            {/* Headline */}
+            <h1 style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, lineHeight: 1.1, marginBottom: 24, color: '#FAFAF8', fontSize: 'clamp(38px, 5.5vw, 68px)' }}>
+              Inspect your new home<br />
+              <span style={{ color: '#00C9A7' }}>yourself</span>
+            </h1>
+
+            {/* Subheadline */}
+            <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 19, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, marginBottom: 36 }}>
+              Get a professional snagging report for <strong style={{ color: '#00C9A7' }}>{config.oneTimePriceDisplay}</strong> instead of paying <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{config.professionalPrice}</strong> for a surveyor.
+            </p>
+
+            {/* CTAs */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 36 }}>
+              <Link href="/inspect/start" style={{
+                fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, fontSize: 16,
+                background: '#00C9A7', color: '#0A0F1A', borderRadius: 10,
+                padding: '14px 28px', textDecoration: 'none', minHeight: 52,
+                display: 'inline-flex', alignItems: 'center',
+                boxShadow: '0 0 24px rgba(0,201,167,0.35)', transition: 'all 0.2s ease',
+              }}>
+                Start Free Inspection
+              </Link>
+              <Link href="/verify-report" style={{
+                fontFamily: 'var(--font-space-grotesk)', fontWeight: 600, fontSize: 16,
+                background: 'transparent', color: '#FAFAF8',
+                border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10,
+                padding: '14px 28px', textDecoration: 'none', minHeight: 52,
+                display: 'inline-flex', alignItems: 'center', transition: 'all 0.2s ease',
+              }}>
+                View Sample Report
+              </Link>
+            </div>
+
+            {/* Social proof */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {COUNTRIES.map(c => <span key={c.code} style={{ fontSize: 18 }}>{c.flag}</span>)}
+              </div>
+              <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
+                {inspectionCount !== null
+                  ? <><strong style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{inspectionCount.toLocaleString()}</strong> inspections completed across 5 countries</>
+                  : 'Inspections completed across 5 countries'
+                }
+              </span>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-24 bg-snap-ink-mid">
-        <div className="max-w-6xl mx-auto px-6">
-          <h2 className="font-fraunces text-4xl font-bold text-center mb-16">
-            How it works
+      <section style={{ background: '#111827', padding: '100px 0' }}>
+        <div style={{ maxWidth: 1152, margin: '0 auto', padding: '0 24px' }}>
+          {/* Label */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <div style={{
+              display: 'inline-flex', background: 'rgba(0,201,167,0.1)', border: '1px solid rgba(0,201,167,0.2)',
+              borderRadius: 999, padding: '6px 14px',
+            }}>
+              <span style={{ fontFamily: 'var(--font-space-grotesk)', fontWeight: 600, fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#00C9A7' }}>
+                How It Works
+              </span>
+            </div>
+          </div>
+
+          <h2 style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 'clamp(28px, 3.5vw, 42px)', color: '#FAFAF8', textAlign: 'center', marginBottom: 60 }}>
+            Three steps to your professional report
           </h2>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
             {[
               {
-                icon: <ClipboardList size={28} className="text-snap-teal" />,
-                step: '01',
+                step: '01', icon: <ClipboardList size={22} color="#00C9A7" />,
                 title: 'Answer questions about your home',
-                body: 'Takes 2 minutes. We generate a custom checklist just for your property.',
+                body: 'Takes 2 minutes. We build a custom checklist just for your property type and what\'s included in your contract.',
               },
               {
-                icon: <Smartphone size={28} className="text-snap-teal" />,
-                step: '02',
-                title: 'Walk through the checklist room by room',
-                body: 'Photograph defects, add notes and voice recordings. Takes 2–3 hours.',
+                step: '02', icon: <Smartphone size={22} color="#00C9A7" />,
+                title: 'Walk through every room',
+                body: 'Photograph defects, record voice notes, mark each item as Pass, Fail or N/A. Takes 2–3 hours.',
               },
               {
-                icon: <FileText size={28} className="text-snap-teal" />,
-                step: '03',
-                title: 'Download your professional report instantly',
-                body: 'Solicitor-ready PDF with photos, notes and severity ratings.',
+                step: '03', icon: <FileText size={22} color="#00C9A7" />,
+                title: 'Download your PDF report instantly',
+                body: 'Professional solicitor-ready report with all your photos, notes and severity ratings.',
               },
-            ].map(({ icon, step, title, body }) => (
-              <div key={step} className="relative">
-                {/* Step number */}
-                <span className="font-fraunces text-7xl font-bold text-white/5 absolute -top-4 -left-2 select-none">
+            ].map(({ step, icon, title, body }) => (
+              <div key={step} style={{
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 16, padding: '32px 28px', position: 'relative', overflow: 'hidden',
+                transition: 'all 0.2s ease',
+              }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(0,201,167,0.2)'; el.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(255,255,255,0.07)'; el.style.transform = 'translateY(0)' }}
+              >
+                {/* Decorative step number */}
+                <div style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 64, color: 'rgba(0,201,167,0.1)', position: 'absolute', top: -8, right: 20, lineHeight: 1, userSelect: 'none' }}>
                   {step}
-                </span>
-                <div className="relative z-10">
-                  <div className="w-14 h-14 bg-snap-teal/10 rounded-2xl flex items-center justify-center mb-5 border border-snap-teal/20">
-                    {icon}
-                  </div>
-                  <h3 className="font-fraunces text-xl font-bold mb-3">{title}</h3>
-                  <p className="font-grotesk text-white/50 text-sm leading-relaxed">{body}</p>
                 </div>
+                {/* Icon */}
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(0,201,167,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+                  {icon}
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 20, color: '#FAFAF8', marginBottom: 12 }}>{title}</h3>
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 15, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, margin: 0 }}>{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── STATS ────────────────────────────────────────────────────────────── */}
+      <section style={{ background: '#0A0F1A', padding: '80px 0' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 0 }}>
+            {[
+              { stat: '94%',                     label: 'of new build buyers report defects' },
+              { stat: AVG_REPAIR_COST[countryCode], label: 'average defect repair cost found' },
+              { stat: '10x cheaper',             label: 'than a professional survey' },
+            ].map(({ stat, label }, i) => (
+              <div key={stat} style={{
+                textAlign: 'center', padding: '32px 24px',
+                borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+              }}>
+                <div style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 'clamp(40px, 5vw, 64px)', color: '#00C9A7', marginBottom: 12, lineHeight: 1 }}>
+                  {stat}
+                </div>
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 15, color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                  {label}
+                </p>
               </div>
             ))}
           </div>
@@ -252,138 +307,112 @@ function HomePageInner() {
       </section>
 
       {/* ── PRICING ──────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 bg-snap-ink">
-        <div className="max-w-5xl mx-auto px-6">
-          <h2 className="font-fraunces text-4xl font-bold text-center mb-4">Simple pricing</h2>
-          <p className="font-grotesk text-white/50 text-center mb-16">
+      <section style={{ background: '#111827', padding: '100px 0' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'inline-flex', background: 'rgba(0,201,167,0.1)', border: '1px solid rgba(0,201,167,0.2)', borderRadius: 999, padding: '6px 14px' }}>
+              <span style={{ fontFamily: 'var(--font-space-grotesk)', fontWeight: 600, fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#00C9A7' }}>Pricing</span>
+            </div>
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 'clamp(28px, 3.5vw, 42px)', color: '#FAFAF8', textAlign: 'center', marginBottom: 16 }}>
+            Simple, honest pricing
+          </h2>
+          <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 16, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: 56 }}>
             Pay once per inspection. No subscription needed for homebuyers.
           </p>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
 
-            {/* LEFT — One-time report */}
-            <div className="card border border-white/10 flex flex-col">
-              <div className="mb-6">
-                <h3 className="font-fraunces text-2xl font-bold mb-1">Single Inspection Report</h3>
-                <p className="font-grotesk text-white/40 text-sm">One payment, one full report.</p>
+            {/* Single report */}
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 36, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>Single Report</span>
               </div>
-
-              <div className="mb-2">
-                <span className="font-fraunces font-bold text-snap-white"
-                  style={{ fontSize: 'clamp(36px, 5vw, 52px)' }}
-                >
-                  {config.oneTimePriceDisplay}
-                </span>
+              <div style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 'clamp(36px, 4vw, 52px)', color: '#FAFAF8', lineHeight: 1, marginBottom: 8 }}>
+                {config.oneTimePriceDisplay}
               </div>
-              <p className="font-grotesk text-white/40 text-sm mb-6 line-through">
+              <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 13, color: 'rgba(255,255,255,0.35)', textDecoration: 'line-through', marginBottom: 28 }}>
                 vs {config.professionalPrice} for a surveyor
               </p>
-
-              <ul className="font-grotesk text-sm space-y-3 mb-8 flex-1">
-                {[
-                  'Full room-by-room checklist',
-                  'Photos on every item',
-                  'Voice notes auto-transcribed',
-                  'Custom items you add yourself',
-                  'Professional PDF report',
-                  'Builder portal included',
-                  `${config.warrantyName} references`,
-                ].map(f => (
-                  <li key={f} className="flex items-start gap-2.5">
-                    <CheckCircle size={15} className="text-snap-pass flex-shrink-0 mt-0.5" />
-                    <span className="text-white/75">{f}</span>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                {['Full room-by-room checklist', 'Photos on every item', 'Voice notes auto-transcribed', 'Custom items', 'Professional PDF report', 'Builder portal included', `${config.warrantyName} references`].map(f => (
+                  <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <Check size={15} style={{ color: '#00D68F', flexShrink: 0, marginTop: 2 }} />
+                    <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>{f}</span>
                   </li>
                 ))}
               </ul>
-
-              <Link
-                href="/inspect/start"
-                className="btn-primary w-full text-center min-h-[48px] flex items-center justify-center font-bold"
-                style={{ fontWeight: 700 }}
-              >
+              <Link href="/inspect/start" style={{
+                fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, fontSize: 15,
+                background: '#00C9A7', color: '#0A0F1A', borderRadius: 10,
+                padding: '14px 24px', textDecoration: 'none', textAlign: 'center',
+                minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 0 24px rgba(0,201,167,0.35)', transition: 'all 0.2s ease',
+              }}>
                 Get started
               </Link>
             </div>
 
-            {/* RIGHT — Expert subscription */}
-            <div
-              className="card border border-snap-teal/40 flex flex-col relative overflow-hidden"
-              style={{ boxShadow: '0 0 40px rgba(0,201,167,0.08)' }}
-            >
-              {/* Popular badge */}
-              <div className="absolute top-5 right-5 bg-snap-teal text-snap-ink text-xs font-bold px-3 py-1 rounded-full font-grotesk">
-                Most popular for professionals
+            {/* Expert subscription */}
+            <div style={{ background: 'rgba(0,201,167,0.05)', border: '2px solid rgba(0,201,167,0.25)', borderRadius: 20, padding: 36, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+              {/* Most popular badge */}
+              <div style={{ position: 'absolute', top: 20, right: 20, background: '#00C9A7', color: '#0A0F1A', fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, fontSize: 11, borderRadius: 999, padding: '4px 10px' }}>
+                Most popular
               </div>
 
-              <div className="mb-6">
-                <h3 className="font-fraunces text-2xl font-bold mb-1 pr-40">Expert Subscription</h3>
-                <p className="font-grotesk text-white/40 text-sm">For snagging professionals.</p>
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#00C9A7' }}>Expert Subscription</span>
               </div>
 
               {/* Billing toggle */}
-              <div className="flex items-center gap-3 mb-4">
-                <button
-                  onClick={() => setBillingAnnual(false)}
-                  className={`font-grotesk text-sm px-3 py-1.5 rounded-lg transition-all min-h-[36px] ${
-                    !billingAnnual ? 'bg-snap-teal/20 text-snap-teal' : 'text-white/40 hover:text-white/60'
-                  }`}
-                >
-                  Monthly
-                </button>
-                <button
-                  onClick={() => setBillingAnnual(true)}
-                  className={`font-grotesk text-sm px-3 py-1.5 rounded-lg transition-all min-h-[36px] ${
-                    billingAnnual ? 'bg-snap-teal/20 text-snap-teal' : 'text-white/40 hover:text-white/60'
-                  }`}
-                >
-                  Annual
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                {['Monthly', 'Annual'].map(b => (
+                  <button key={b} onClick={() => setBillingAnnual(b === 'Annual')}
+                    style={{
+                      fontFamily: 'var(--font-space-grotesk)', fontSize: 13, fontWeight: 600,
+                      background: (b === 'Annual') === billingAnnual ? 'rgba(0,201,167,0.2)' : 'transparent',
+                      color: (b === 'Annual') === billingAnnual ? '#00C9A7' : 'rgba(255,255,255,0.4)',
+                      border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
+                      minHeight: 36, transition: 'all 0.2s ease',
+                    }}>
+                    {b}
+                  </button>
+                ))}
                 {billingAnnual && (
-                  <span className="font-grotesk text-xs text-snap-pass font-semibold">
-                    Save {config.currency}{annualSaving}/year
+                  <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, color: '#00D68F', fontWeight: 600 }}>
+                    Save {sym}{annualSaving}/yr
                   </span>
                 )}
               </div>
 
-              <div className="mb-6">
-                <span className="font-fraunces font-bold text-snap-teal"
-                  style={{ fontSize: 'clamp(36px, 5vw, 52px)' }}
-                >
-                  {config.currency}{billingAnnual ? annualMonthly : monthlyPrice}
+              <div style={{ marginBottom: 28 }}>
+                <span style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 'clamp(36px, 4vw, 52px)', color: '#00C9A7', lineHeight: 1 }}>
+                  {sym}{billingAnnual ? annualMonthly : monthlyPrice}
                 </span>
-                <span className="font-grotesk text-white/40 text-sm ml-2">/month</span>
+                <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 14, color: 'rgba(255,255,255,0.4)', marginLeft: 6 }}>/month</span>
                 {billingAnnual && (
-                  <p className="font-grotesk text-xs text-white/30 mt-1">
-                    Billed {config.currency}{annualTotal}/year
+                  <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, color: 'rgba(255,255,255,0.3)', margin: '4px 0 0' }}>
+                    Billed {sym}{annualTotal}/year
                   </p>
                 )}
               </div>
 
-              <ul className="font-grotesk text-sm space-y-3 mb-8 flex-1">
-                {[
-                  'Everything in single report PLUS:',
-                  'Unlimited inspections',
-                  'Your company logo on every report',
-                  'Multiple properties at once',
-                  'Priority SnapBot access',
-                  'Expert dashboard',
-                  'Bulk PDF export',
-                ].map((f, i) => (
-                  <li key={f} className="flex items-start gap-2.5">
-                    <CheckCircle
-                      size={15}
-                      className={`flex-shrink-0 mt-0.5 ${i === 0 ? 'text-snap-teal' : 'text-snap-teal'}`}
-                    />
-                    <span className={i === 0 ? 'text-white/50 italic' : 'text-white/75'}>{f}</span>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                {['Everything in single report PLUS:', 'Unlimited inspections', 'Your company logo on reports', 'Multiple properties at once', 'Priority SnapBot access', 'Expert dashboard', 'Bulk PDF export'].map((f, i) => (
+                  <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <Check size={15} style={{ color: '#00C9A7', flexShrink: 0, marginTop: 2 }} />
+                    <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 14, color: i === 0 ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.75)', fontStyle: i === 0 ? 'italic' : 'normal' }}>{f}</span>
                   </li>
                 ))}
               </ul>
 
-              <Link
-                href={`/signup?plan=expert-${billingAnnual ? 'annual' : 'monthly'}`}
-                className="btn-primary w-full text-center min-h-[48px] flex items-center justify-center font-bold"
-                style={{ boxShadow: '0 0 24px rgba(0,201,167,0.3)', fontWeight: 700 }}
-              >
+              <Link href={`/signup?plan=expert-${billingAnnual ? 'annual' : 'monthly'}`} style={{
+                fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, fontSize: 15,
+                background: '#00C9A7', color: '#0A0F1A', borderRadius: 10,
+                padding: '14px 24px', textDecoration: 'none', textAlign: 'center',
+                minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 0 24px rgba(0,201,167,0.35)', transition: 'all 0.2s ease',
+              }}>
                 Start Expert trial
               </Link>
             </div>
@@ -391,31 +420,25 @@ function HomePageInner() {
         </div>
       </section>
 
-      {/* ── TRUST STATS ──────────────────────────────────────────────────────── */}
-      <section className="py-24 bg-snap-ink border-t border-white/5">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 text-center">
-            {[
-              {
-                stat: '94%',
-                label: 'of new build buyers report defects',
-              },
-              {
-                stat: AVG_REPAIR_COST[countryCode],
-                label: 'average repair cost found per inspection',
-              },
-              {
-                stat: '10x cheaper',
-                label: 'than a professional survey',
-              },
-            ].map(({ stat, label }) => (
-              <div key={stat}>
-                <div className="font-fraunces font-bold text-snap-teal mb-3"
-                  style={{ fontSize: 'clamp(36px, 4vw, 52px)' }}
-                >
-                  {stat}
-                </div>
-                <p className="font-grotesk text-white/50 text-sm leading-relaxed">{label}</p>
+      {/* ── TRUST / COUNTRIES ────────────────────────────────────────────────── */}
+      <section style={{ background: '#0A0F1A', padding: '80px 0' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
+          <h2 style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 'clamp(24px, 3vw, 36px)', color: '#FAFAF8', marginBottom: 48 }}>
+            Trusted by new build buyers across 5 countries
+          </h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16 }}>
+            {COUNTRIES.map(c => (
+              <div key={c.code} style={{
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 14, padding: '20px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                transition: 'all 0.2s ease', minWidth: 140,
+              }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(0,201,167,0.2)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)')}
+              >
+                <span style={{ fontSize: 32 }}>{c.flag}</span>
+                <span style={{ fontFamily: 'var(--font-fraunces)', fontWeight: 700, fontSize: 15, color: '#FAFAF8' }}>{c.name}</span>
+                <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{c.domain}</span>
               </div>
             ))}
           </div>
@@ -423,36 +446,49 @@ function HomePageInner() {
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────────────────────────── */}
-      <footer style={{ background: '#060A10' }} className="border-t border-white/5">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-8">
-            {/* Logo */}
-            <SnapSnagLogo size="sm" showTagline />
-
-            {/* Links */}
-            <div className="flex flex-wrap gap-6 font-grotesk text-sm text-white/40">
-              <Link href="/privacy"        className="hover:text-white/70 transition-colors min-h-[44px] flex items-center">Privacy Policy</Link>
-              <Link href="/terms"          className="hover:text-white/70 transition-colors min-h-[44px] flex items-center">Terms</Link>
-              <Link href="#support"        className="hover:text-white/70 transition-colors min-h-[44px] flex items-center">Support</Link>
-              <Link href="/verify-report"  className="hover:text-white/70 transition-colors min-h-[44px] flex items-center">Verify Report</Link>
+      <footer style={{ background: '#060A10', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ maxWidth: 1152, margin: '0 auto', padding: '60px 24px 40px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 32, marginBottom: 40 }}>
+            <Logo />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+              {[
+                { href: '/privacy', label: 'Privacy Policy' },
+                { href: '/terms', label: 'Terms' },
+                { href: '/support', label: 'Support' },
+                { href: '/verify-report', label: 'Verify Report' },
+                { href: '/blog', label: 'Blog' },
+              ].map(({ href, label }) => (
+                <Link key={href} href={href} style={{
+                  fontFamily: 'var(--font-space-grotesk)', fontSize: 14, color: 'rgba(255,255,255,0.4)',
+                  textDecoration: 'none', transition: 'color 0.2s ease', minHeight: 44, display: 'flex', alignItems: 'center',
+                }}
+                  onMouseEnter={e => (e.target as HTMLElement).style.color = 'rgba(255,255,255,0.7)'}
+                  onMouseLeave={e => (e.target as HTMLElement).style.color = 'rgba(255,255,255,0.4)'}
+                >
+                  {label}
+                </Link>
+              ))}
             </div>
-
-            {/* Country switcher */}
-            <CountrySwitcher variant="footer" />
           </div>
-
-          <div className="border-t border-white/5 pt-6">
-            <p className="font-grotesk text-xs text-white/20 text-center">
-              © 2025 SnapSnag. All rights reserved.
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 24, textAlign: 'center' }}>
+            <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 13, color: 'rgba(255,255,255,0.25)', margin: 0 }}>
+              © {new Date().getFullYear()} SnapSnag. All rights reserved.
             </p>
           </div>
         </div>
       </footer>
-    </main>
+
+      {/* Grid animation keyframe */}
+      <style>{`
+        @keyframes gridMove {
+          from { background-position: 0 0; }
+          to   { background-position: 64px 64px; }
+        }
+      `}</style>
+    </div>
   )
 }
 
-import { Suspense } from 'react'
 export default function HomePage() {
   return (
     <Suspense>
