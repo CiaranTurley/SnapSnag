@@ -1,0 +1,192 @@
+name: Test & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # These are safe to share — point at a dedicated Supabase test project
+  PLAYWRIGHT_BASE_URL: http://localhost:3000
+  NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Playwright E2E tests
+  # ─────────────────────────────────────────────────────────────────────────────
+  playwright:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_GA4_ID: '' # Disabled in tests
+
+      - name: Start app
+        run: npm start &
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          LOOPS_API_KEY: ${{ secrets.LOOPS_API_KEY }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+
+      - name: Wait for app to be ready
+        run: npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run Playwright tests
+        run: npx playwright test --project=chromium
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PLAYWRIGHT_TEST_EXPERT_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_EXPERT_EMAIL }}
+          PLAYWRIGHT_TEST_EXPERT_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_EXPERT_PASSWORD }}
+          PLAYWRIGHT_DELETION_EMAIL: ${{ secrets.PLAYWRIGHT_DELETION_EMAIL }}
+          PLAYWRIGHT_DELETION_PASSWORD: ${{ secrets.PLAYWRIGHT_DELETION_PASSWORD }}
+          PLAYWRIGHT_SEED_INSPECTION_ID: ${{ secrets.PLAYWRIGHT_SEED_INSPECTION_ID }}
+          PLAYWRIGHT_SEED_PAID_INSPECTION_ID: ${{ secrets.PLAYWRIGHT_SEED_PAID_INSPECTION_ID }}
+          PLAYWRIGHT_SEED_VERIFICATION_CODE: ${{ secrets.PLAYWRIGHT_SEED_VERIFICATION_CODE }}
+          APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload Playwright traces (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
+      - name: Send failure alert
+        if: failure() && github.ref == 'refs/heads/main'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.resend.com
+          server_port: 587
+          username: resend
+          password: ${{ secrets.RESEND_API_KEY }}
+          subject: "🔴 SnapSnag E2E tests FAILED — ${{ github.sha }}"
+          to: ${{ secrets.OWNER_EMAIL }}
+          from: alerts@snapsnag.ie
+          body: |
+            Playwright tests failed on branch ${{ github.ref }} (commit ${{ github.sha }}).
+
+            View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            The Vercel deployment will NOT proceed until tests pass.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Deploy to Vercel (only if E2E passed, only on main)
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Vercel
+    needs: playwright
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    outputs:
+      deployment-url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        id: deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 3: Lighthouse audit after deployment (alert only — no rollback)
+  # ─────────────────────────────────────────────────────────────────────────────
+  lighthouse:
+    name: Lighthouse Audit
+    needs: deploy
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Lighthouse audits
+        id: lighthouse
+        continue-on-error: true # Alert but don't block
+        run: node tests/performance.js
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.deploy.outputs.deployment-url }}
+
+      - name: Send Lighthouse alert if scores dropped
+        if: steps.lighthouse.outcome == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.resend.com
+          server_port: 587
+          username: resend
+          password: ${{ secrets.RESEND_API_KEY }}
+          subject: "⚠️ SnapSnag Lighthouse scores dropped — ${{ github.sha }}"
+          to: ${{ secrets.OWNER_EMAIL }}
+          from: alerts@snapsnag.ie
+          body: |
+            Lighthouse performance scores dropped below thresholds after deployment.
+            The deployment proceeded but performance needs attention.
+
+            Deployment URL: ${{ needs.deploy.outputs.deployment-url }}
+            View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

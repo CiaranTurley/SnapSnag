@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+
 import toast from 'react-hot-toast'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { Eye, EyeOff, UserPlus } from 'lucide-react'
 
 export default function SignupPage() {
-  const router = useRouter()
-  const supabase = createSupabaseBrowserClient()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createSupabaseBrowserClient() as any
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -50,6 +51,13 @@ export default function SignupPage() {
         email,
         name,
       })
+
+      // Register contact in Loops (fire-and-forget, server-side to keep API key safe)
+      fetch('/api/contact-upsert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, userId: data.user.id }),
+      }).catch(() => {})
     }
 
     setLoading(false)

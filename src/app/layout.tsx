@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from 'next'
 import { Fraunces, Space_Grotesk } from 'next/font/google'
 import { Toaster } from 'react-hot-toast'
+import { GoogleAnalytics } from '@next/third-parties/google'
+import { CountryProvider } from '@/lib/CountryContext'
+import { ThemeProvider } from '@/lib/ThemeContext'
+import SnapBot from '@/components/SnapBot'
+import SupportChat from '@/components/SupportChat'
+import PWAInstallPrompt from '@/components/PWAInstallPrompt'
+import CookieConsent from '@/components/CookieConsent'
 import './globals.css'
 
 // ─── Fraunces: headings & logo wordmark ──────────────────────────────────────
@@ -53,7 +60,36 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fraunces.variable} ${spaceGrotesk.variable}`}>
       <body className="antialiased">
-        {children}
+        <ThemeProvider>
+          <CountryProvider>
+            <a href="#main-content" className="skip-link">Skip to main content</a>
+            {children}
+            <SupportChat />
+            <SnapBot />
+            <PWAInstallPrompt />
+          </CountryProvider>
+        </ThemeProvider>
+        {/* GA4 — default consent denied; CookieConsent banner updates it */}
+        {process.env.NEXT_PUBLIC_GA4_ID && (
+          <>
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('consent','default',{analytics_storage:'denied'});
+                  // Restore consent from localStorage before GA loads
+                  try {
+                    var c = localStorage.getItem('snapsnag_cookie_consent');
+                    if (c === 'all') gtag('consent','update',{analytics_storage:'granted'});
+                  } catch(e){}
+                `,
+              }}
+            />
+            <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA4_ID} />
+          </>
+        )}
+        <CookieConsent />
         {/* Global toast notifications */}
         <Toaster
           position="top-right"

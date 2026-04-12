@@ -1,0 +1,16 @@
+# *
+User-agent: *
+Allow: /
+
+# *
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /inspect/
+
+# Host
+Host: https://snapsnagapp.com
+
+# Sitemaps
+Sitemap: https://snapsnagapp.com/sitemap.xml
