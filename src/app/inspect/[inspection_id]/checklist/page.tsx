@@ -559,7 +559,6 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
         ref={photoInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handlePhotoSelected}
       />
