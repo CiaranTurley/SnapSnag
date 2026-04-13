@@ -88,6 +88,33 @@ export default function SampleReportPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0A0F1A', paddingBottom: 60 }}>
 
+      {/* ── Sticky nav ──────────────────────────────────────────────────────── */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(10,15,26,0.97)', backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 20px', height: 56,
+      }}>
+        <Link href="/" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          fontFamily: 'var(--font-space-grotesk)', fontSize: 14, fontWeight: 600,
+          color: 'rgba(255,255,255,0.7)', textDecoration: 'none',
+          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 8, padding: '7px 14px', transition: 'all 0.2s',
+        }}>
+          ← Back to homepage
+        </Link>
+        <Link href="/inspect/start" style={{
+          fontFamily: 'var(--font-space-grotesk)', fontSize: 14, fontWeight: 700,
+          background: '#00C9A7', color: '#0A0F1A', borderRadius: 8,
+          padding: '7px 16px', textDecoration: 'none',
+          boxShadow: '0 0 16px rgba(0,201,167,0.3)',
+        }}>
+          Start Free →
+        </Link>
+      </div>
+
       {/* ── Banner ──────────────────────────────────────────────────────────── */}
       <div style={{
         background: 'rgba(0,201,167,0.08)', borderBottom: '1px solid rgba(0,201,167,0.2)',
