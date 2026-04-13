@@ -1023,6 +1023,7 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
         photoBase64={snapbotPhoto?.base64}
         photoMimeType={snapbotPhoto?.mimeType}
         onPhotoAnalysed={() => setSnapbotPhoto(null)}
+        bottomOffset={84}
       />
 
       {/* ── SPEED WARNING MODAL ───────────────────────────────────────────── */}

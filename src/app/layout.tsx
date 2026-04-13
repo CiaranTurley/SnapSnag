@@ -4,8 +4,6 @@ import { Toaster } from 'react-hot-toast'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { CountryProvider } from '@/lib/CountryContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
-import SnapBot from '@/components/SnapBot'
-import SupportChat from '@/components/SupportChat'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import CookieConsent from '@/components/CookieConsent'
 import './globals.css'
@@ -64,8 +62,6 @@ export default function RootLayout({
           <CountryProvider>
             <a href="#main-content" className="skip-link">Skip to main content</a>
             {children}
-            <SupportChat />
-            <SnapBot />
             <PWAInstallPrompt />
           </CountryProvider>
         </ThemeProvider>

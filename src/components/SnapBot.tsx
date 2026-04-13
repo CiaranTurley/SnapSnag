@@ -18,6 +18,8 @@ interface SnapBotProps {
   photoMimeType?: string
   /** Called after photo analysis is complete so parent can clear the photo */
   onPhotoAnalysed?: () => void
+  /** Extra bottom offset in px — use when a fixed bottom bar would obscure the button */
+  bottomOffset?: number
 }
 
 // ─── Opening message ──────────────────────────────────────────────────────────
@@ -68,7 +70,7 @@ function formatTime(date: Date): string {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }: SnapBotProps) {
+export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, bottomOffset = 20 }: SnapBotProps) {
   const { countryCode } = useCountry()
   const warrantyName = WARRANTY_NAMES[countryCode] ?? 'HomeBond'
 
@@ -300,8 +302,9 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
       {/* ── Chat Window ───────────────────────────────────────────────────── */}
       {open && (
         <div
-          className="fixed bottom-24 right-4 z-50 flex flex-col overflow-hidden"
+          className="fixed right-4 z-50 flex flex-col overflow-hidden"
           style={{
+            bottom: bottomOffset + 68,
             width: 'min(380px, calc(100vw - 32px))',
             height: 'min(520px, 60vh)',
             background: '#111827',
@@ -443,8 +446,9 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
       {/* ── Floating Button ───────────────────────────────────────────────── */}
       <button
         onClick={open ? () => setOpen(false) : handleOpen}
-        className="fixed bottom-5 right-5 z-50 flex items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
+        className="fixed right-5 z-50 flex items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
         style={{
+          bottom: bottomOffset,
           width: 56,
           height: 56,
           background: '#00C9A7',
