@@ -193,7 +193,7 @@ function HomePageInner() {
               }}>
                 Start Free Inspection
               </Link>
-              <Link href="/verify-report" style={{
+              <Link href="/sample-report" style={{
                 fontFamily: 'var(--font-space-grotesk)', fontWeight: 600, fontSize: 16,
                 background: 'transparent', color: '#FAFAF8',
                 border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10,
