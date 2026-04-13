@@ -357,8 +357,8 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   async function toggleRecording(itemId: string) {
     if (recording === itemId) {
       // Stop recording + transcription
-      mediaRef.current?.stop()
-      recognitionRef.current?.stop()
+      try { mediaRef.current?.stop() } catch { /* ignore */ }
+      try { recognitionRef.current?.stop() } catch { /* ignore */ }
       recognitionRef.current = null
       setRecording(null)
       return
@@ -381,9 +381,29 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
         if (!uploaded) return
         const { data: { publicUrl } } = supabase.storage.from('voice-notes').getPublicUrl(path)
         const transcript = transcriptRef.current.trim() || null
-        patchItem(itemId, { voice_note_url: publicUrl, voice_note_transcript: transcript })
+
+        // Auto-populate written note with transcript if note is empty
+        const currentItem = items.find(i => i.id === itemId)
+        const existingNote = currentItem?.written_note?.trim() || ''
+        const newNote = existingNote
+          ? existingNote
+          : (transcript || '')
+
+        const updatePayload: Record<string, unknown> = {
+          voice_note_url: publicUrl,
+          voice_note_transcript: transcript,
+        }
+        if (!existingNote && transcript) {
+          updatePayload.written_note = transcript
+        }
+
+        patchItem(itemId, {
+          voice_note_url: publicUrl,
+          voice_note_transcript: transcript,
+          written_note: newNote || currentItem?.written_note || null,
+        })
         await supabase.from('checklist_items')
-          .update({ voice_note_url: publicUrl, voice_note_transcript: transcript })
+          .update(updatePayload)
           .eq('id', itemId)
         flashSaved(itemId)
       }
