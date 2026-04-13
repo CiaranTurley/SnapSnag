@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ClipboardList, Smartphone, FileText, X, Menu, Check } from 'lucide-react'
+import { ClipboardList, Smartphone, FileText, X, Menu, Check, ChevronDown, User, HardHat, ShieldCheck } from 'lucide-react'
 import { useCountry } from '@/lib/CountryContext'
 import { type CountryCode } from '@/lib/countryConfig'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
@@ -51,6 +51,7 @@ function HomePageInner() {
   const { countryCode, config } = useCountry()
   const searchParams = useSearchParams()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [loginOpen, setLoginOpen] = useState(false)
   const [inspectionCount, setInspectionCount] = useState<number | null>(null)
   const [billingAnnual, setBillingAnnual] = useState(false)
 
@@ -91,24 +92,79 @@ function HomePageInner() {
 
           {/* Desktop */}
           <div className="hidden md:flex" style={{ alignItems: 'center', gap: 12 }}>
-            <Link href="/login" style={{
-              fontFamily: 'var(--font-space-grotesk)', fontSize: 14, color: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '9px 18px',
-              textDecoration: 'none', transition: 'all 0.2s ease',
-            }}
-              onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.35)'; (e.target as HTMLElement).style.color = '#fff' }}
-              onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.15)'; (e.target as HTMLElement).style.color = 'rgba(255,255,255,0.7)' }}
-            >
-              Expert Login
-            </Link>
+            {/* Login dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setLoginOpen(v => !v)}
+                onBlur={() => setTimeout(() => setLoginOpen(false), 150)}
+                style={{
+                  fontFamily: 'var(--font-space-grotesk)', fontSize: 14, color: 'rgba(255,255,255,0.7)',
+                  border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '9px 18px',
+                  background: 'none', cursor: 'pointer', transition: 'all 0.2s ease',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+                onMouseEnter={e => { (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'); (e.currentTarget.style.color = '#fff') }}
+                onMouseLeave={e => { (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'); (e.currentTarget.style.color = 'rgba(255,255,255,0.7)') }}
+              >
+                Log in <ChevronDown size={14} style={{ opacity: 0.6, transform: loginOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
+
+              {loginOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 200,
+                  background: '#111827', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 14, padding: 8, minWidth: 220,
+                  boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+                }}>
+                  <Link href="/login" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, textDecoration: 'none', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,201,167,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <User size={15} color="#00C9A7" />
+                    </div>
+                    <div>
+                      <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 13, fontWeight: 600, color: '#FAFAF8', marginBottom: 1 }}>My Inspection</p>
+                      <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Continue report &amp; track fixes</p>
+                    </div>
+                  </Link>
+
+                  <Link href="/builder" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, textDecoration: 'none', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,179,64,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <HardHat size={15} color="#FFB340" />
+                    </div>
+                    <div>
+                      <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 13, fontWeight: 600, color: '#FAFAF8', marginBottom: 1 }}>Builder Portal</p>
+                      <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Enter report code to close snags</p>
+                    </div>
+                  </Link>
+
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+
+                  <Link href="/expert" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, textDecoration: 'none', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(138,99,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <ShieldCheck size={15} color="#8A63FF" />
+                    </div>
+                    <div>
+                      <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 13, fontWeight: 600, color: '#FAFAF8', marginBottom: 1 }}>Pro Login</p>
+                      <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Subscription inspector dashboard</p>
+                    </div>
+                  </Link>
+                </div>
+              )}
+            </div>
+
             <Link href="/inspect/start" style={{
               fontFamily: 'var(--font-space-grotesk)', fontSize: 14, fontWeight: 700,
               background: '#00C9A7', color: '#0A0F1A', borderRadius: 10, padding: '9px 20px',
               textDecoration: 'none', boxShadow: '0 0 24px rgba(0,201,167,0.35)',
               transition: 'all 0.2s ease',
             }}
-              onMouseEnter={e => (e.target as HTMLElement).style.filter = 'brightness(1.1)'}
-              onMouseLeave={e => (e.target as HTMLElement).style.filter = 'brightness(1)'}
+              onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.1)')}
+              onMouseLeave={e => (e.currentTarget.style.filter = 'brightness(1)')}
             >
               Start Free Inspection
             </Link>
@@ -125,16 +181,59 @@ function HomePageInner() {
         {menuOpen && (
           <div style={{
             position: 'fixed', inset: 0, top: 64, background: '#0A0F1A', zIndex: 99,
-            display: 'flex', flexDirection: 'column', padding: 24, gap: 12,
+            display: 'flex', flexDirection: 'column', padding: 24, gap: 10, overflowY: 'auto',
           }}>
+            <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>
+              Log in as
+            </p>
+
             <Link href="/login" onClick={() => setMenuOpen(false)} style={{
-              fontFamily: 'var(--font-space-grotesk)', fontSize: 15, color: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 20px',
-              textDecoration: 'none', textAlign: 'center', minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>Expert Login</Link>
+              display: 'flex', alignItems: 'center', gap: 14,
+              border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 18px',
+              textDecoration: 'none', background: 'rgba(255,255,255,0.03)',
+            }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0,201,167,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <User size={18} color="#00C9A7" />
+              </div>
+              <div>
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 15, fontWeight: 600, color: '#FAFAF8', marginBottom: 2 }}>My Inspection</p>
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Continue your report &amp; track builder fixes</p>
+              </div>
+            </Link>
+
+            <Link href="/builder" onClick={() => setMenuOpen(false)} style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 18px',
+              textDecoration: 'none', background: 'rgba(255,255,255,0.03)',
+            }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,179,64,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <HardHat size={18} color="#FFB340" />
+              </div>
+              <div>
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 15, fontWeight: 600, color: '#FAFAF8', marginBottom: 2 }}>Builder Portal</p>
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Enter report code to close snags</p>
+              </div>
+            </Link>
+
+            <Link href="/expert" onClick={() => setMenuOpen(false)} style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 18px',
+              textDecoration: 'none', background: 'rgba(255,255,255,0.03)',
+            }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(138,99,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ShieldCheck size={18} color="#8A63FF" />
+              </div>
+              <div>
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 15, fontWeight: 600, color: '#FAFAF8', marginBottom: 2 }}>Pro Login</p>
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Subscription inspector dashboard</p>
+              </div>
+            </Link>
+
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+
             <Link href="/inspect/start" onClick={() => setMenuOpen(false)} style={{
               fontFamily: 'var(--font-space-grotesk)', fontSize: 15, fontWeight: 700,
-              background: '#00C9A7', color: '#0A0F1A', borderRadius: 12, padding: '14px 20px',
+              background: '#00C9A7', color: '#0A0F1A', borderRadius: 12, padding: '16px 20px',
               textDecoration: 'none', textAlign: 'center', minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 0 24px rgba(0,201,167,0.35)',
             }}>Start Free Inspection</Link>
