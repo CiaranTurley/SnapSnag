@@ -473,6 +473,7 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
     setExpandedId(null)
     setDrawerOpen(false)
     localStorage.setItem(ROOM_KEY(inspection_id), String(idx))
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   function nextRoom() {
