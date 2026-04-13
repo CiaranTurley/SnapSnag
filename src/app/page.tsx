@@ -262,14 +262,13 @@ function HomePageInner() {
 
             {/* Headline */}
             <h1 style={{ fontFamily: FH, fontWeight: 700, lineHeight: 1.05, marginBottom: 24, color: '#FAFAF8', fontSize: 'clamp(38px, 5.5vw, 68px)' }}>
-              A {surveyHigh} survey.<br />Or {config.oneTimePriceDisplay}.<br />
-              <span style={{ color: '#00C9A7' }}>Same result.</span>
+              Spot it. Snap it.<br />
+              <span style={{ color: '#00C9A7' }}>Snag it.</span>
             </h1>
 
             {/* Subheadline */}
             <p style={{ fontFamily: GH, fontSize: 18, color: 'rgba(255,255,255,0.55)', lineHeight: 1.65, marginBottom: 36, maxWidth: 580 }}>
-              Professional room-by-room snagging checklist. AI defect detection. Interactive or download-ready report.
-              Built for creating your personal SnagList in {countryName}.
+              Create professional snag lists in minutes.
             </p>
 
             {/* CTAs */}
