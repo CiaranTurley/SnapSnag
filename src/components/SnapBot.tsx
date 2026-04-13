@@ -85,6 +85,7 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
 
   // Typewriter effect state
   const [typedContent, setTypedContent] = useState('')
+  const [typewriterActive, setTypewriterActive] = useState(false)
   const typeQueueRef = useRef('')
   const typeRunningRef = useRef(false)
   const typedAccRef = useRef('')
@@ -99,27 +100,54 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
     typeQueueRef.current += newChars
     if (!typeRunningRef.current) {
       typeRunningRef.current = true
+      setTypewriterActive(true)
       const tick = () => {
-        if (typeQueueRef.current.length === 0) { typeRunningRef.current = false; return }
-        const take = Math.min(4, typeQueueRef.current.length)
+        if (typeQueueRef.current.length === 0) {
+          typeRunningRef.current = false
+          setTypewriterActive(false)
+          return
+        }
+        const take = Math.min(3, typeQueueRef.current.length)
         const chars = typeQueueRef.current.slice(0, take)
         typeQueueRef.current = typeQueueRef.current.slice(take)
         typedAccRef.current += chars
         setTypedContent(prev => prev + chars)
-        setTimeout(tick, 18)
+        setTimeout(tick, 22)
       }
       tick()
     }
   }, [messages, streaming])
 
-  // Scroll to latest message
+  // Drain remaining queue after streaming ends
+  useEffect(() => {
+    if (streaming) return
+    if (typeRunningRef.current || typeQueueRef.current.length === 0) return
+    typeRunningRef.current = true
+    setTypewriterActive(true)
+    const tick = () => {
+      if (typeQueueRef.current.length === 0) {
+        typeRunningRef.current = false
+        setTypewriterActive(false)
+        return
+      }
+      const take = Math.min(3, typeQueueRef.current.length)
+      const chars = typeQueueRef.current.slice(0, take)
+      typeQueueRef.current = typeQueueRef.current.slice(take)
+      typedAccRef.current += chars
+      setTypedContent(prev => prev + chars)
+      setTimeout(tick, 22)
+    }
+    tick()
+  }, [streaming])
+
+  // Scroll to bottom as typewriter types and when messages change
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, scrollToBottom])
+  }, [messages, typedContent, scrollToBottom])
 
   // Focus input when opened
   useEffect(() => {
@@ -340,7 +368,7 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
                         : { background: '#1C2840', color: '#FAFAF8' }
                     }
                   >
-                    {streaming && i === messages.length - 1
+                    {(streaming || typewriterActive) && i === messages.length - 1
                       ? (typedContent || <TypingDots />)
                       : msg.content}
                   </div>
@@ -357,8 +385,8 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed }:
               </div>
             ))}
 
-            {/* Typing indicator while streaming and last message has no content yet */}
-            {streaming && messages.length > 0 && messages[messages.length - 1].content === '' && (
+            {/* Typing indicator while waiting for first chunk */}
+            {streaming && messages.length > 0 && messages[messages.length - 1].content === '' && !typedContent && (
               <div className="flex justify-start">
                 <div className="rounded-2xl" style={{ background: '#1C2840' }}>
                   <TypingDots />
