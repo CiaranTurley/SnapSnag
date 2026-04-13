@@ -221,6 +221,14 @@ export default function BuilderDashboardPage() {
 
   async function handleSubmitUpdate() {
     if (!activeItem || !action) return
+    if (action === 'fix' && !builderPhoto) {
+      setSubmitError('A photo of the completed fix is required.')
+      return
+    }
+    if (action === 'fix' && !builderNote.trim()) {
+      setSubmitError('A description of the work carried out is required.')
+      return
+    }
     if (action === 'dispute' && !disputeReason.trim()) {
       setSubmitError('Please provide a reason for disputing this item.')
       return
@@ -372,10 +380,13 @@ export default function BuilderDashboardPage() {
             {/* Fix form */}
             {action === 'fix' && (
               <div className="space-y-4">
-                <h3 className="font-fraunces text-base font-bold text-white">Mark as Fixed</h3>
+                <div>
+                  <h3 className="font-fraunces text-base font-bold text-white">Mark as Fixed</h3>
+                  <p className="font-grotesk text-xs text-white/40 mt-1">Both a photo and description are required to close a snag.</p>
+                </div>
                 <div>
                   <label className="font-grotesk text-xs text-white/40 uppercase tracking-widest mb-2 block">
-                    Upload photo of fix (optional)
+                    Photo of completed fix <span className="text-red-400">*</span>
                   </label>
                   {builderPhotoPreview ? (
                     <div className="relative">
@@ -386,20 +397,22 @@ export default function BuilderDashboardPage() {
                       >✕</button>
                     </div>
                   ) : (
-                    <label className="flex items-center justify-center gap-2 w-full h-24 border-2 border-dashed border-white/20 rounded-xl cursor-pointer hover:border-snap-teal/50 transition-colors">
-                      <span className="text-white/40 font-grotesk text-sm">📷  Add photo of fix</span>
+                    <label className="flex flex-col items-center justify-center gap-2 w-full h-28 border-2 border-dashed border-white/20 rounded-xl cursor-pointer hover:border-snap-teal/50 transition-colors">
+                      <span className="text-2xl">📷</span>
+                      <span className="text-white/50 font-grotesk text-sm font-semibold">Upload photo of the fix</span>
+                      <span className="text-white/25 font-grotesk text-xs">Required to close this snag</span>
                       <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                     </label>
                   )}
                 </div>
                 <div>
                   <label className="font-grotesk text-xs text-white/40 uppercase tracking-widest mb-2 block">
-                    Note (optional)
+                    Description of work carried out <span className="text-red-400">*</span>
                   </label>
                   <textarea
                     value={builderNote}
                     onChange={e => setBuilderNote(e.target.value)}
-                    placeholder="e.g. Replastered and repainted on 15 March"
+                    placeholder="e.g. Skirting board removed, gap filled and mitre-cut corner re-fitted. Painted to match on 15 March."
                     rows={3}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-grotesk placeholder:text-white/20 focus:outline-none focus:border-snap-teal resize-none"
                   />
