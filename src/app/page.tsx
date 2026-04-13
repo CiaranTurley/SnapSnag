@@ -376,6 +376,22 @@ function HomePageInner() {
                 Learn more
               </Link>
             </div>
+
+            {/* Card 4 — Builder */}
+            <div style={{ background: 'rgba(255,179,64,0.03)', border: '1px solid rgba(255,179,64,0.18)', borderRadius: 20, padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(255,179,64,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <HardHat size={24} color="#FFB340" />
+              </div>
+              <div>
+                <h3 style={{ fontFamily: FH, fontWeight: 700, fontSize: 20, color: '#FAFAF8', marginBottom: 10 }}>You are a builder or developer</h3>
+                <p style={{ fontFamily: GH, fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
+                  Log in to your Builder Portal with the report code. See every snag with photos, mark items as fixed or in progress, and track your closure rate in real time.
+                </p>
+              </div>
+              <Link href="/builder" style={{ fontFamily: GH, fontWeight: 700, fontSize: 14, background: 'transparent', color: '#FFB340', border: '1px solid rgba(255,179,64,0.3)', borderRadius: 10, padding: '12px 20px', textDecoration: 'none', textAlign: 'center', display: 'block', marginTop: 'auto' }}>
+                Go to Builder Portal
+              </Link>
+            </div>
           </div>
         </div>
       </section>
