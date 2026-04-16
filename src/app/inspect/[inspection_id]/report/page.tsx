@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import SnapSnagLogo from '@/components/SnapSnagLogo'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
@@ -103,11 +103,10 @@ function PaymentGate({ inspectionId }: { inspectionId: string }) {
         )}
       </button>
       <p className="font-grotesk text-xs text-white/30 mt-3 text-center">
-        Not satisfied?{' '}
+        Questions?{' '}
         <a href="mailto:hello@snapsnagapp.com" className="text-white/50 hover:text-snap-teal transition-colors underline">
-          Contact us within 7 days
-        </a>{' '}
-        for a full refund.
+          Contact us
+        </a>
       </p>
     </div>
   )
@@ -173,6 +172,7 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
 export default function ReportPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const inspectionId = params.inspection_id as string
 
   const [inspection, setInspection] = useState<InspectionRow | null>(null)
@@ -190,6 +190,27 @@ export default function ReportPage() {
   const [respondingTo, setRespondingTo] = useState<string | null>(null)
   const [buyerFeedback, setBuyerFeedback] = useState('')
   const [respondingLoading, setRespondingLoading] = useState(false)
+
+  // ── Verify Stripe session if redirected from checkout ────────────────────────
+  // Handles the race condition where the user arrives before the webhook fires.
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id')
+    if (!sessionId || !inspectionId) return
+
+    fetch('/api/verify-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, inspectionId }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.paid) {
+          // Re-fetch the inspection so paid_at is reflected
+          setInspection(prev => prev ? { ...prev, paid_at: prev.paid_at ?? new Date().toISOString() } : prev)
+        }
+      })
+      .catch(() => {})
+  }, [searchParams, inspectionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load data ────────────────────────────────────────────────────────────────
   useEffect(() => {
