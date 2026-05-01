@@ -4,11 +4,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import SnapSnagLogo from '@/components/SnapSnagLogo'
-import SnapBot from '@/components/SnapBot'
 import {
   ChevronLeft, ChevronRight, LayoutGrid, Clock, Check, X, Minus,
   Camera, Mic, Plus, CheckCircle2, Circle, Square, Radio,
-  List, Image as ImageIcon, AlertTriangle, Bot,
+  List, Image as ImageIcon, AlertTriangle,
 } from 'lucide-react'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -109,9 +108,7 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   const [recording, setRecording]       = useState<string | null>(null) // itemId being recorded
   const [userId, setUserId]             = useState<string | null>(null)
   const [needsSeverity, setNeedsSeverity] = useState<string | null>(null)
-  const [snapbotPhoto, setSnapbotPhoto] = useState<{ base64: string; mimeType: string } | null>(null)
-  const [activeTab, setActiveTab]       = useState<'list' | 'photos' | 'fails' | 'bot'>('list')
-  const [snapbotOpen, setSnapbotOpen]   = useState(false)
+  const [activeTab, setActiveTab]       = useState<'list' | 'photos' | 'fails'>('list')
 
   const noteTimers   = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const timerRef     = useRef<ReturnType<typeof setInterval>>()
@@ -346,26 +343,6 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
     await supabase.from('checklist_items').update({ photos: newPhotos }).eq('id', item.id)
   }
 
-  async function analyseWithSnapBot(photoUrl: string) {
-    // Always open SnapBot first so user sees something happening
-    setSnapbotOpen(false)
-    setTimeout(() => setSnapbotOpen(true), 0)
-    try {
-      const res = await fetch(photoUrl)
-      if (!res.ok) throw new Error('Photo fetch failed')
-      const blob = await res.blob()
-      const mimeType = (blob.type || 'image/jpeg') as string
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve((reader.result as string).split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(blob)
-      })
-      setSnapbotPhoto({ base64, mimeType })
-    } catch {
-      // SnapBot is already open — user can ask questions manually
-    }
-  }
 
   // ── Voice recording ────────────────────────────────────────────────────────
   async function toggleRecording(itemId: string) {
@@ -976,13 +953,6 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
                         >
                           <X size={9} className="text-white" />
                         </button>
-                        <button
-                          onClick={() => analyseWithSnapBot(url)}
-                          className="absolute bottom-0 left-0 right-0 py-1 text-center font-bold"
-                          style={{ fontSize: 7, background: 'rgba(0,201,167,0.85)', color: '#fff', lineHeight: '1.2' }}
-                        >
-                          Ask Bot
-                        </button>
                       </div>
                     ))}
                     {item.photos.length < 3 && (
@@ -1103,14 +1073,10 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
             { id: 'list',   icon: <List size={20} />,          label: 'Checklist' },
             { id: 'photos', icon: <ImageIcon size={20} />,      label: 'Photos' },
             { id: 'fails',  icon: <AlertTriangle size={20} />, label: `Fails${items.filter(i => i.response === 'fail').length > 0 ? ` (${items.filter(i => i.response === 'fail').length})` : ''}` },
-            { id: 'bot',    icon: <Bot size={20} />,           label: 'SnapBot' },
           ] as const).map(tab => (
             <button
               key={tab.id}
-              onClick={() => {
-                if (tab.id === 'bot') { setSnapbotOpen(false); setTimeout(() => setSnapbotOpen(true), 0); return }
-                setActiveTab(tab.id)
-              }}
+              onClick={() => setActiveTab(tab.id)}
               className="flex-1 flex flex-col items-center gap-1 py-2 transition-colors"
               style={{ color: activeTab === tab.id ? '#00C9A7' : 'rgba(255,255,255,0.35)' }}
             >
@@ -1237,15 +1203,6 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
         </div>
       )}
 
-      {/* ── SNAPBOT ───────────────────────────────────────────────────────── */}
-      <SnapBot
-        photoBase64={snapbotPhoto?.base64}
-        photoMimeType={snapbotPhoto?.mimeType}
-        onPhotoAnalysed={() => setSnapbotPhoto(null)}
-        forceOpen={snapbotOpen}
-        onClose={() => { setSnapbotOpen(false) }}
-        bottomOffset={84}
-      />
 
       {/* ── SPEED WARNING MODAL ───────────────────────────────────────────── */}
       {showSpeedWarn && (
