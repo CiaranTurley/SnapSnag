@@ -965,11 +965,18 @@ export default function InspectStartPage() {
 
       {/* Fixed bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-snap-ink/95 backdrop-blur-md border-t border-white/5 px-5 py-4 z-40">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto flex gap-3">
+          <button
+            onClick={() => section === 1 ? setStage('country') : back()}
+            className="min-h-[52px] px-5 flex items-center justify-center font-bold rounded-xl border border-white/10 text-white/50 hover:text-white hover:border-white/20 transition-all font-grotesk"
+            style={{ fontWeight: 600 }}
+          >
+            ← Back
+          </button>
           <button
             onClick={next}
             disabled={!canProceed(section, answers)}
-            className="btn-primary w-full min-h-[52px] flex items-center justify-center font-bold disabled:opacity-30 disabled:cursor-not-allowed"
+            className="btn-primary flex-1 min-h-[52px] flex items-center justify-center font-bold disabled:opacity-30 disabled:cursor-not-allowed"
             style={{ fontWeight: 700 }}
           >
             {section === TOTAL_SECTIONS
