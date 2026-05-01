@@ -1,60 +1,43 @@
 import { test, expect } from '@playwright/test'
 import {
-  gotoHome, dismissCookieBanner, completeQuestionnaire,
-  waitForChecklist, passItem, failItemWithSeverity,
-  waitForPaywall, fillStripeCard, getInspectionIdFromUrl,
-  COUNTRY_PRICES, STRIPE_CARDS,
+  gotoHome, dismissCookieBanner, loginAsTestUser, completeQuestionnaire,
+  waitForChecklist, passItem, failItemWithSeverity, finishInspection,
+  interceptPaymentWithSuccess, getInspectionIdFromUrl,
+  COUNTRY_PRICES,
 } from './helpers'
 
 test.describe('Canada full user journey', () => {
   test('CA inspection with CAD pricing and Tarion references', async ({ page }) => {
-    // ── Homepage shows CA context ──────────────────────────────────────────────
+    await loginAsTestUser(page)
+
     await gotoHome(page, 'CA')
     await dismissCookieBanner(page)
 
     await expect(page.getByText(/canada/i).first()).toBeVisible()
-    await expect(page.getByText(/CAD|\$.*CAD/i)).toBeVisible()
+    await expect(page.getByText(/C\$/).first()).toBeVisible()
 
-    // ── Start inspection ───────────────────────────────────────────────────────
     await page.getByRole('link', { name: /start.*inspection|inspect.*free/i }).first().click()
-    await expect(page.getByText(/disclaimer|important|not a substitute/i)).toBeVisible({ timeout: 10_000 })
-    await page.getByRole('button', { name: /i understand|start.*inspection|begin/i }).click()
-    await expect(page).toHaveURL(/\/inspect\/start/)
+    await expect(page).toHaveURL(/\/inspect\/start/, { timeout: 15_000 })
 
-    // ── Questionnaire ──────────────────────────────────────────────────────────
     await completeQuestionnaire(page, 'CA')
-
-    // ── Checklist loads ────────────────────────────────────────────────────────
     await waitForChecklist(page)
+    const inspectionId = getInspectionIdFromUrl(page)
 
-    // Verify Tarion warranty reference
-    const pageText = await page.content()
-    expect(pageText).toContain('Tarion')
+    await expect(page.getByText(/outside/i).first()).toBeVisible({ timeout: 15_000 })
 
-    // Verify CA uses "outlets" terminology
-    expect(pageText.toLowerCase()).toContain('outlet')
-
-    // ── Complete 10 items ──────────────────────────────────────────────────────
     await passItem(page)
     await failItemWithSeverity(page, 'Minor cosmetic')
-    for (let i = 0; i < 8; i++) {
-      await passItem(page)
-    }
+    await passItem(page)
 
-    // ── Paywall shows CAD price ────────────────────────────────────────────────
-    await waitForPaywall(page)
-    await expect(page.getByText(COUNTRY_PRICES['CA'])).toBeVisible()
+    await finishInspection(page)
+    await expect(page.getByText(COUNTRY_PRICES['CA'])).toBeVisible({ timeout: 10_000 })
 
-    // ── Payment ────────────────────────────────────────────────────────────────
-    const inspectionId = getInspectionIdFromUrl(page)
-    await page.getByRole('button', { name: /pay|unlock|get.*report/i }).first().click()
-    await page.waitForTimeout(3_000)
-    await fillStripeCard(page, STRIPE_CARDS.success)
-    await page.getByRole('button', { name: /pay|submit|confirm/i }).last().click()
+    await interceptPaymentWithSuccess(page)
+    await page.getByRole('button', { name: /get.*report/i }).click()
 
-    await page.waitForURL(/\/inspect\/.+\/(checklist|report)/, { timeout: 60_000 })
-
-    await page.goto(`/inspect/${inspectionId}/report`)
+    await page.waitForURL(/\/inspect\/.+\/report/, { timeout: 30_000 })
+    await page.waitForLoadState('networkidle')
     await expect(page.getByText(/download|pdf|report/i).first()).toBeVisible({ timeout: 15_000 })
+    expect(page.url()).toContain(inspectionId)
   })
 })

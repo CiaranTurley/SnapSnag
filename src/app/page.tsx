@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 import { useCountry } from '@/lib/CountryContext'
 import { type CountryCode } from '@/lib/countryConfig'
-import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -28,10 +27,6 @@ const COUNTRY_FLAG: Record<CountryCode, string> = {
 
 const COUNTRY_NAME: Record<CountryCode, string> = {
   IE: 'Ireland', UK: 'United Kingdom', AU: 'Australia', US: 'United States', CA: 'Canada',
-}
-
-const WARRANTY_NAMES: Record<CountryCode, string> = {
-  IE: 'HomeBond', UK: 'NHBC Buildmark', AU: 'HBC Fund', US: 'Builder Warranty', CA: 'Tarion warranty',
 }
 
 const COUNTRIES = [
@@ -110,36 +105,24 @@ function SectionBadge({ label }: { label: string }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 function HomePageInner() {
-  const { countryCode, config } = useCountry()
+  const { countryCode, config, setCountry } = useCountry()
   const searchParams = useSearchParams()
-  const [menuOpen, setMenuOpen]     = useState(false)
-  const [loginOpen, setLoginOpen]   = useState(false)
-  const [inspectionCount, setInspectionCount] = useState<number | null>(null)
+  const [menuOpen, setMenuOpen]         = useState(false)
+  const [loginOpen, setLoginOpen]       = useState(false)
+  const [countryOpen, setCountryOpen]   = useState(false)
   const [billingAnnual, setBillingAnnual]     = useState(false)
-  const [openFaq, setOpenFaq]       = useState<number | null>(null)
+  const [openFaq, setOpenFaq]           = useState<number | null>(null)
 
   useEffect(() => {
     const ref = searchParams.get('ref')
     if (ref) localStorage.setItem('snapsnag_ref', ref.toUpperCase())
   }, [searchParams])
 
-  useEffect(() => {
-    const supabase = createSupabaseBrowserClient()
-    async function fetchCount() {
-      const { count } = await supabase.from('inspections').select('*', { count: 'exact', head: true })
-      if (count !== null) setInspectionCount(count)
-    }
-    fetchCount()
-    const interval = setInterval(fetchCount, 60_000)
-    return () => clearInterval(interval)
-  }, [])
-
   const monthlyPrice  = (config.expertMonthly / 100).toFixed(2)
   const annualTotal   = (config.expertAnnual  / 100).toFixed(2)
   const annualMonthly = (config.expertAnnual  / 100 / 12).toFixed(2)
   const annualSaving  = ((config.expertMonthly * 12 - config.expertAnnual) / 100).toFixed(2)
   const sym           = config.symbol
-  const warrantyName  = WARRANTY_NAMES[countryCode]
   const countryFlag   = COUNTRY_FLAG[countryCode]
   const countryName   = COUNTRY_NAME[countryCode]
   const surveyHigh    = SURVEY_HIGH[countryCode]
@@ -158,27 +141,86 @@ function HomePageInner() {
           <Logo />
 
           {/* Desktop nav */}
-          <div className="hidden md:flex" style={{ alignItems: 'center', gap: 12 }}>
+          <div className="hidden md:flex" style={{ alignItems: 'center', gap: 4 }}>
+            {/* Nav links */}
+            {[
+              { href: '#how-it-works', label: 'How It Works' },
+              { href: '#pricing',      label: 'Pricing' },
+              { href: '/builder',      label: 'For Builders' },
+              { href: '/expert',       label: 'Expert' },
+            ].map(item => (
+              <a key={item.href} href={item.href} style={{ fontFamily: GH, fontSize: 14, color: 'rgba(255,255,255,0.6)', textDecoration: 'none', padding: '8px 12px', borderRadius: 8, transition: 'color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}>
+                {item.label}
+              </a>
+            ))}
+
+            <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
+
+            {/* Country switcher */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setCountryOpen(v => !v); setLoginOpen(false) }}
+                onBlur={() => setTimeout(() => setCountryOpen(false), 150)}
+                style={{
+                  fontFamily: GH, fontSize: 13, fontWeight: 600,
+                  color: 'rgba(255,255,255,0.6)',
+                  border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px',
+                  background: 'rgba(255,255,255,0.04)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+              >
+                🌐 {countryCode} <ChevronDown size={12} style={{ opacity: 0.5, transform: countryOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
+
+              {countryOpen && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 200, background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 6, minWidth: 180, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
+                  {COUNTRIES.map(c => (
+                    <button key={c.code}
+                      onClick={() => { setCountry(c.code); setCountryOpen(false) }}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left',
+                        background: countryCode === c.code ? 'rgba(0,201,167,0.12)' : 'transparent',
+                        color: countryCode === c.code ? '#00C9A7' : 'rgba(255,255,255,0.7)',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => { if (countryCode !== c.code) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                      onMouseLeave={e => { if (countryCode !== c.code) e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <span style={{ fontSize: 16 }}>{c.flag}</span>
+                      <span style={{ fontFamily: GH, fontSize: 13, fontWeight: 500 }}>{c.name}</span>
+                      {countryCode === c.code && <Check size={12} style={{ marginLeft: 'auto' }} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Sign In dropdown */}
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setLoginOpen(v => !v)}
                 onBlur={() => setTimeout(() => setLoginOpen(false), 150)}
                 style={{
                   fontFamily: GH, fontSize: 14, color: 'rgba(255,255,255,0.7)',
-                  border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '9px 18px',
+                  border: 'none', borderRadius: 8, padding: '8px 12px',
                   background: 'none', cursor: 'pointer', transition: 'all 0.2s ease',
-                  display: 'flex', alignItems: 'center', gap: 6,
+                  display: 'flex', alignItems: 'center', gap: 5,
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#fff' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
               >
-                Log in <ChevronDown size={14} style={{ opacity: 0.6, transform: loginOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                Sign In <ChevronDown size={13} style={{ opacity: 0.6, transform: loginOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </button>
 
               {loginOpen && (
                 <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 200, background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 8, minWidth: 220, boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
                   {[
-                    { href: '/login',   icon: <User size={15} color="#00C9A7" />,     bg: 'rgba(0,201,167,0.12)',  title: 'My Inspection',   sub: 'Continue report & track fixes' },
+                    { href: '/login',   icon: <User size={15} color="#00C9A7" />,     bg: 'rgba(0,201,167,0.12)',  title: 'My Inspection',   sub: 'Continue your report & track fixes' },
                     { href: '/builder', icon: <HardHat size={15} color="#FFB340" />,  bg: 'rgba(255,179,64,0.12)', title: 'Builder Portal',   sub: 'Enter report code to close snags' },
                   ].map(item => (
                     <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, textDecoration: 'none', transition: 'background 0.15s' }}
@@ -197,7 +239,7 @@ function HomePageInner() {
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(138,99,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ShieldCheck size={15} color="#8A63FF" /></div>
                     <div>
-                      <p style={{ fontFamily: GH, fontSize: 13, fontWeight: 600, color: '#FAFAF8', marginBottom: 1 }}>Pro Login</p>
+                      <p style={{ fontFamily: GH, fontSize: 13, fontWeight: 600, color: '#FAFAF8', marginBottom: 1 }}>Expert Login</p>
                       <p style={{ fontFamily: GH, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Subscription inspector dashboard</p>
                     </div>
                   </Link>
@@ -205,10 +247,10 @@ function HomePageInner() {
               )}
             </div>
 
-            <Link href="/inspect/start" style={{ fontFamily: GH, fontSize: 14, fontWeight: 700, background: '#00C9A7', color: '#0A0F1A', borderRadius: 10, padding: '9px 20px', textDecoration: 'none', boxShadow: '0 0 24px rgba(0,201,167,0.35)', transition: 'all 0.2s ease' }}
+            <Link href="/inspect/start" style={{ fontFamily: GH, fontSize: 14, fontWeight: 700, background: '#00C9A7', color: '#0A0F1A', borderRadius: 10, padding: '9px 20px', textDecoration: 'none', boxShadow: '0 0 20px rgba(0,201,167,0.3)', transition: 'all 0.2s ease', marginLeft: 4 }}
               onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.1)')}
               onMouseLeave={e => (e.currentTarget.style.filter = 'brightness(1)')}>
-              Start Free
+              Start Free →
             </Link>
           </div>
 
@@ -219,30 +261,59 @@ function HomePageInner() {
           </button>
         </div>
 
-        {/* Mobile menu */}
-        {menuOpen && (
-          <div style={{ position: 'fixed', inset: 0, top: 64, background: '#0A0F1A', zIndex: 99, display: 'flex', flexDirection: 'column', padding: 24, gap: 10, overflowY: 'auto' }}>
-            <p style={{ fontFamily: GH, fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Log in as</p>
-            {[
-              { href: '/login',   icon: <User size={18} color="#00C9A7" />,        bg: 'rgba(0,201,167,0.12)',   title: 'My Inspection',  sub: 'Continue your report & track builder fixes' },
-              { href: '/builder', icon: <HardHat size={18} color="#FFB340" />,     bg: 'rgba(255,179,64,0.12)', title: 'Builder Portal', sub: 'Enter report code to close snags' },
-              { href: '/expert',  icon: <ShieldCheck size={18} color="#8A63FF" />, bg: 'rgba(138,99,255,0.12)', title: 'Pro Login',       sub: 'Subscription inspector dashboard' },
-            ].map(item => (
-              <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 18px', textDecoration: 'none', background: 'rgba(255,255,255,0.03)' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.icon}</div>
-                <div>
-                  <p style={{ fontFamily: GH, fontSize: 15, fontWeight: 600, color: '#FAFAF8', marginBottom: 2 }}>{item.title}</p>
-                  <p style={{ fontFamily: GH, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{item.sub}</p>
-                </div>
-              </Link>
-            ))}
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
-            <Link href="/inspect/start" onClick={() => setMenuOpen(false)} style={{ fontFamily: GH, fontSize: 15, fontWeight: 700, background: '#00C9A7', color: '#0A0F1A', borderRadius: 12, padding: '16px 20px', textDecoration: 'none', textAlign: 'center', minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 24px rgba(0,201,167,0.35)' }}>
-              Start Free — Pay Only When You Download
-            </Link>
-          </div>
-        )}
       </nav>
+
+      {/* Mobile menu — rendered outside nav to avoid stacking context issues */}
+      {menuOpen && (
+        <div style={{ position: 'fixed', inset: 0, top: 64, background: '#0A0F1A', zIndex: 200, display: 'flex', flexDirection: 'column', padding: 24, gap: 10, overflowY: 'auto' }}>
+          {[
+            { href: '#how-it-works', label: 'How It Works' },
+            { href: '#pricing',      label: 'Pricing' },
+          ].map(item => (
+            <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{ fontFamily: GH, fontSize: 15, color: 'rgba(255,255,255,0.6)', textDecoration: 'none', padding: '12px 4px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              {item.label}
+            </a>
+          ))}
+          <p style={{ fontFamily: GH, fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 8, marginBottom: 4 }}>Sign in as</p>
+          {[
+            { href: '/login',   icon: <User size={18} color="#00C9A7" />,        bg: 'rgba(0,201,167,0.12)',   title: 'My Inspection',  sub: 'Continue your report & track builder fixes' },
+            { href: '/builder', icon: <HardHat size={18} color="#FFB340" />,     bg: 'rgba(255,179,64,0.12)', title: 'Builder Portal', sub: 'Enter report code to close snags' },
+            { href: '/expert',  icon: <ShieldCheck size={18} color="#8A63FF" />, bg: 'rgba(138,99,255,0.12)', title: 'Expert Login',    sub: 'Subscription inspector dashboard' },
+          ].map(item => (
+            <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 18px', textDecoration: 'none', background: 'rgba(255,255,255,0.03)' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.icon}</div>
+              <div>
+                <p style={{ fontFamily: GH, fontSize: 15, fontWeight: 600, color: '#FAFAF8', marginBottom: 2 }}>{item.title}</p>
+                <p style={{ fontFamily: GH, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{item.sub}</p>
+              </div>
+            </Link>
+          ))}
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+
+          {/* Country switcher in mobile menu */}
+          <p style={{ fontFamily: GH, fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 4, marginBottom: 4 }}>Country</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {COUNTRIES.map(c => (
+              <button key={c.code}
+                onClick={() => { setCountry(c.code); setMenuOpen(false) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 10,
+                  border: `1px solid ${countryCode === c.code ? 'rgba(0,201,167,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  background: countryCode === c.code ? 'rgba(0,201,167,0.12)' : 'rgba(255,255,255,0.03)',
+                  color: countryCode === c.code ? '#00C9A7' : 'rgba(255,255,255,0.6)',
+                  fontFamily: GH, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}>
+                {c.flag} {c.code}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+          <Link href="/inspect/start" onClick={() => setMenuOpen(false)} style={{ fontFamily: GH, fontSize: 15, fontWeight: 700, background: '#00C9A7', color: '#0A0F1A', borderRadius: 12, padding: '16px 20px', textDecoration: 'none', textAlign: 'center', minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 24px rgba(0,201,167,0.35)' }}>
+            Start My Inspection — {config.oneTimePriceDisplay}
+          </Link>
+        </div>
+      )}
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section style={{ position: 'relative', minHeight: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
@@ -251,50 +322,88 @@ function HomePageInner() {
         <div style={{ position: 'absolute', top: 0, right: 0, width: 600, height: 600, pointerEvents: 'none', background: 'radial-gradient(circle at top right, rgba(0,201,167,0.08) 0%, transparent 70%)' }} />
 
         <div style={{ position: 'relative', zIndex: 10, maxWidth: 1152, margin: '0 auto', padding: '80px 24px', width: '100%' }}>
-          <div style={{ maxWidth: 680 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 48, alignItems: 'center' }}>
+            <div style={{ maxWidth: 620 }}>
 
-            {/* Badge */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(0,201,167,0.1)', border: '1px solid rgba(0,201,167,0.2)', borderRadius: 999, padding: '6px 14px', marginBottom: 28 }}>
-              <span style={{ fontFamily: GH, fontWeight: 600, fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#00C9A7' }}>
-                {countryFlag} New Home Inspector · {countryName}
-              </span>
-            </div>
-
-            {/* Headline */}
-            <h1 style={{ fontFamily: FH, fontWeight: 700, lineHeight: 1.05, marginBottom: 24, color: '#FAFAF8', fontSize: 'clamp(38px, 5.5vw, 68px)' }}>
-              Spot it. Snap it.<br />
-              <span style={{ color: '#00C9A7' }}>Snag it.</span>
-            </h1>
-
-            {/* Subheadline */}
-            <p style={{ fontFamily: GH, fontSize: 18, color: 'rgba(255,255,255,0.55)', lineHeight: 1.65, marginBottom: 36, maxWidth: 580 }}>
-              Create professional snag lists in minutes.
-            </p>
-
-            {/* CTAs */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 40 }}>
-              <Link href="/inspect/start" style={{ fontFamily: GH, fontWeight: 700, fontSize: 16, background: '#00C9A7', color: '#0A0F1A', borderRadius: 10, padding: '14px 28px', textDecoration: 'none', minHeight: 52, display: 'inline-flex', alignItems: 'center', boxShadow: '0 0 28px rgba(0,201,167,0.4)', transition: 'all 0.2s ease' }}>
-                Start Free — Pay Only When You Download
-              </Link>
-              <Link href="/sample-report" style={{ fontFamily: GH, fontWeight: 600, fontSize: 16, background: 'transparent', color: '#FAFAF8', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, padding: '14px 28px', textDecoration: 'none', minHeight: 52, display: 'inline-flex', alignItems: 'center', transition: 'all 0.2s ease' }}>
-                See a sample report
-              </Link>
-            </div>
-
-            {/* Trust row */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-              {[
-                `${countryFlag} ${inspectionCount !== null ? inspectionCount.toLocaleString() : '—'} inspections in ${countryName}`,
-                'AI photo analysis',
-                'Builder portal included',
-                '10-minute setup',
-                `${warrantyName} references`,
-              ].map((item, i) => (
-                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {i > 0 && <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 12 }}>·</span>}
-                  <span style={{ fontFamily: GH, fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>{item}</span>
+              {/* Price badge */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(0,201,167,0.1)', border: '1px solid rgba(0,201,167,0.2)', borderRadius: 999, padding: '6px 14px', marginBottom: 28 }}>
+                <span style={{ fontFamily: GH, fontWeight: 600, fontSize: 12, color: '#00C9A7' }}>
+                  {countryFlag} {countryName} · {config.oneTimePriceDisplay} one-time
                 </span>
-              ))}
+              </div>
+
+              {/* Headline */}
+              <h1 style={{ fontFamily: FH, fontWeight: 700, lineHeight: 1.05, marginBottom: 24, color: '#FAFAF8', fontSize: 'clamp(38px, 5.5vw, 68px)' }}>
+                Spot it. Snap it.<br />
+                <span style={{ color: '#00C9A7' }}>Snag it.</span>
+              </h1>
+
+              {/* Subheadline */}
+              <p style={{ fontFamily: GH, fontSize: 18, color: 'rgba(255,255,255,0.55)', lineHeight: 1.65, marginBottom: 36, maxWidth: 520 }}>
+                Create professional snag lists in minutes. Photo every defect, add notes, and generate a solicitor-ready PDF report — from your phone.
+              </p>
+
+              {/* CTA */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 32 }}>
+                <Link href="/inspect/start" style={{ fontFamily: GH, fontWeight: 700, fontSize: 16, background: '#00C9A7', color: '#0A0F1A', borderRadius: 10, padding: '14px 28px', textDecoration: 'none', minHeight: 52, display: 'inline-flex', alignItems: 'center', boxShadow: '0 0 28px rgba(0,201,167,0.4)', transition: 'all 0.2s ease' }}>
+                  Start My Inspection — {config.oneTimePriceDisplay}
+                </Link>
+                <Link href="/sample-report" style={{ fontFamily: GH, fontWeight: 600, fontSize: 15, background: 'transparent', color: 'rgba(255,255,255,0.6)', borderRadius: 10, padding: '14px 20px', textDecoration: 'none', minHeight: 52, display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'color 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}>
+                  ▶ See a sample report
+                </Link>
+              </div>
+
+              {/* Trust row */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                {[
+                  '✓ No account needed',
+                  '✓ PDF downloads instantly',
+                  '✓ Builder portal included',
+                ].map((item, i) => (
+                  <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {i > 0 && <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 12 }}>·</span>}
+                    <span style={{ fontFamily: GH, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>{item}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Phone mockup */}
+            <div className="hidden lg:block" style={{ flexShrink: 0 }}>
+              <div style={{ width: 260, background: '#111827', borderRadius: 32, border: '1px solid rgba(255,255,255,0.1)', padding: '16px 12px', boxShadow: '0 32px 64px rgba(0,0,0,0.5)', position: 'relative' }}>
+                {/* Status bar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '0 4px' }}>
+                  <span style={{ fontFamily: GH, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>9:41</span>
+                  <div style={{ width: 48, height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4 }} />
+                  <span style={{ fontFamily: GH, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>▲▲ ▐</span>
+                </div>
+                {/* App header */}
+                <div style={{ marginBottom: 12, padding: '0 4px' }}>
+                  <p style={{ fontFamily: FH, fontWeight: 700, fontSize: 14, color: '#00C9A7', marginBottom: 2 }}>My Inspection</p>
+                  <p style={{ fontFamily: GH, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>14 Maple Grove · 52 items</p>
+                  <div style={{ height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 999, marginTop: 8, overflow: 'hidden' }}>
+                    <div style={{ width: '62%', height: '100%', background: '#00C9A7', borderRadius: 999 }} />
+                  </div>
+                </div>
+                {/* Room list */}
+                {[
+                  { name: 'Living Room', count: '12/12', status: 'DONE', active: false },
+                  { name: 'Kitchen',     count: '8/14',  status: 'active', active: true },
+                  { name: 'not started', count: '0/8',   status: '',  active: false },
+                  { name: 'not started', count: '0/8',   status: '',  active: false },
+                ].map((room, i) => (
+                  <div key={i} style={{ background: room.active ? 'rgba(0,201,167,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${room.active ? 'rgba(0,201,167,0.3)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 10, padding: '10px 12px', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ fontFamily: GH, fontSize: 12, fontWeight: 600, color: room.active ? '#00C9A7' : room.status === 'DONE' ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.25)', marginBottom: 1 }}>{room.name}</p>
+                      <p style={{ fontFamily: GH, fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{room.count}</p>
+                    </div>
+                    {room.status === 'DONE' && <span style={{ fontFamily: GH, fontSize: 10, fontWeight: 700, color: '#00D68F', background: 'rgba(0,214,143,0.12)', borderRadius: 999, padding: '2px 8px' }}>DONE</span>}
+                    {room.active && <span style={{ color: '#00C9A7', fontSize: 14 }}>→</span>}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -428,7 +537,7 @@ function HomePageInner() {
                     <div style={{ background: 'rgba(0,201,167,0.08)', border: '1px solid rgba(0,201,167,0.2)', borderRadius: 10, padding: '14px 16px' }}>
                       <p style={{ fontFamily: GH, fontSize: 11, fontWeight: 700, color: '#00C9A7', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>SnapBot Analysis</p>
                       <p style={{ fontFamily: GH, fontSize: 13, color: '#FAFAF8', marginBottom: 4 }}>Skirting board gap — minor defect</p>
-                      <p style={{ fontFamily: GH, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Est. repair: €40–€80 · Covered by HomeBond ✓</p>
+                      <p style={{ fontFamily: GH, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Est. repair: €40–€80 · Covered under builder warranty ✓</p>
                     </div>
                   </div>
                 ),
@@ -506,7 +615,7 @@ function HomePageInner() {
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
-      <section style={{ background: '#0A0F1A', padding: '100px 0' }}>
+      <section id="how-it-works" style={{ background: '#0A0F1A', padding: '100px 0' }}>
         <div style={{ maxWidth: 1152, margin: '0 auto', padding: '0 24px' }}>
           <SectionBadge label="How it works" />
           <h2 style={{ fontFamily: FH, fontWeight: 700, fontSize: 'clamp(28px, 3.5vw, 42px)', color: '#FAFAF8', textAlign: 'center', marginBottom: 60 }}>
@@ -516,7 +625,7 @@ function HomePageInner() {
             {[
               { step: '01', icon: <ClipboardList size={22} color="#00C9A7" />, title: 'Answer questions about your home', body: 'Takes 2 minutes. We build a custom checklist just for your property type and what\'s included in your contract.' },
               { step: '02', icon: <Smartphone size={22} color="#00C9A7" />,    title: 'Walk through every room',          body: 'Photograph defects, record voice notes, mark each item as Pass, Fail or N/A. Takes 2–3 hours.' },
-              { step: '03', icon: <FileText size={22} color="#00C9A7" />,      title: 'Download your PDF report instantly', body: 'Professional solicitor-ready report with all your photos, notes and severity ratings.' },
+              { step: '03', icon: <FileText size={22} color="#00C9A7" />,      title: 'Unlock your professional report', body: 'Choose PDF, Word or Excel. Solicitor-ready with all your photos, notes and severity ratings.' },
             ].map(({ step, icon, title, body }) => (
               <div key={step} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '32px 28px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s ease' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,201,167,0.2)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
@@ -532,7 +641,7 @@ function HomePageInner() {
       </section>
 
       {/* ── PRICING ──────────────────────────────────────────────────────────── */}
-      <section style={{ background: '#111827', padding: '100px 0' }}>
+      <section id="pricing" style={{ background: '#111827', padding: '100px 0' }}>
         <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 24px' }}>
           <SectionBadge label="Pricing" />
           <h2 style={{ fontFamily: FH, fontWeight: 700, fontSize: 'clamp(28px, 3.5vw, 42px)', color: '#FAFAF8', textAlign: 'center', marginBottom: 12 }}>
@@ -558,7 +667,7 @@ function HomePageInner() {
               </p>
 
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-                {['Full room-by-room checklist', 'Photos on every item', 'Voice notes auto-transcribed', 'Custom items', 'Professional PDF report', 'Builder portal included', `${warrantyName} references`].map(f => (
+                {['Full room-by-room checklist', 'Photos on every item', 'Voice notes auto-transcribed', 'Custom items', 'PDF, Word & Excel report', 'Builder portal included'].map(f => (
                   <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <Check size={15} style={{ color: '#00D68F', flexShrink: 0, marginTop: 2 }} />
                     <span style={{ fontFamily: GH, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>{f}</span>
@@ -662,7 +771,7 @@ function HomePageInner() {
           </h2>
           <p style={{ fontFamily: GH, fontSize: 16, color: 'rgba(255,255,255,0.45)', lineHeight: 1.75 }}>
             SnapSnag was built because professional snagging surveys cost {config.professionalPrice} and most buyers simply cannot afford them.
-            Every new build buyer deserves to know exactly what defects exist in their home before their builder warranty expires.
+            Every homebuyer deserves to know exactly what defects exist in their new home.
             SnapSnag makes that possible for {config.oneTimePriceDisplay}.
           </p>
         </div>
@@ -672,7 +781,7 @@ function HomePageInner() {
       <section style={{ background: '#0A0F1A', padding: '80px 0' }}>
         <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
           <h2 style={{ fontFamily: FH, fontWeight: 700, fontSize: 'clamp(22px, 3vw, 34px)', color: '#FAFAF8', marginBottom: 48 }}>
-            Trusted by new build buyers across 5 countries
+            Trusted by users across 5 countries
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16 }}>
             {COUNTRIES.map(c => (
@@ -681,7 +790,6 @@ function HomePageInner() {
                 onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)')}>
                 <span style={{ fontSize: 32 }}>{c.flag}</span>
                 <span style={{ fontFamily: FH, fontWeight: 700, fontSize: 15, color: '#FAFAF8' }}>{c.name}</span>
-                <span style={{ fontFamily: GH, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{c.domain}</span>
               </div>
             ))}
           </div>

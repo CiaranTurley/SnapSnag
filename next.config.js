@@ -19,9 +19,15 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config) => {
+  webpack: (config, { dev }) => {
     config.resolve.alias.canvas   = false
     config.resolve.alias.encoding = false
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: ['**/.git/**', '**/test-results/**', '**/playwright-report/**'],
+      }
+    }
     return config
   },
 }

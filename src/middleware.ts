@@ -28,10 +28,12 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Redirect logged-out users away from protected pages
-  const protectedPaths = ['/dashboard', '/inspection', '/inspect', '/account']
-  const isProtected = protectedPaths.some(p =>
-    request.nextUrl.pathname.startsWith(p)
-  )
+  // /inspect/start (questionnaire) is intentionally public — no sign-up required to begin
+  const protectedPaths = ['/dashboard', '/inspection', '/account']
+  const isProtected =
+    protectedPaths.some(p => request.nextUrl.pathname.startsWith(p)) ||
+    (request.nextUrl.pathname.startsWith('/inspect/') &&
+     !request.nextUrl.pathname.startsWith('/inspect/start'))
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone()

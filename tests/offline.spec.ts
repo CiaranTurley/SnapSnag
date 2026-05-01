@@ -1,17 +1,18 @@
 import { test, expect } from '@playwright/test'
 import {
-  gotoHome, dismissCookieBanner, completeQuestionnaire,
+  gotoHome, dismissCookieBanner, loginAsTestUser, completeQuestionnaire,
   waitForChecklist, passItem,
 } from './helpers'
 
 test.describe('Offline mode and sync', () => {
   test('items completed offline are synced when network restored', async ({ page, context }) => {
+    await loginAsTestUser(page)
+
     await gotoHome(page, 'IE')
     await dismissCookieBanner(page)
 
     await page.getByRole('link', { name: /start.*inspection|inspect.*free/i }).first().click()
-    await expect(page.getByText(/disclaimer|important|not a substitute/i)).toBeVisible({ timeout: 10_000 })
-    await page.getByRole('button', { name: /i understand|start.*inspection|begin/i }).click()
+    await expect(page).toHaveURL(/\/inspect\/start/, { timeout: 15_000 })
 
     await completeQuestionnaire(page, 'IE')
     await waitForChecklist(page)

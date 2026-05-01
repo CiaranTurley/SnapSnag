@@ -7,7 +7,8 @@ import SnapSnagLogo from '@/components/SnapSnagLogo'
 import SnapBot from '@/components/SnapBot'
 import {
   ChevronLeft, ChevronRight, LayoutGrid, Clock, Check, X, Minus,
-  Camera, Mic, Pencil, Plus, CheckCircle2, Circle, MicOff, Square, Radio,
+  Camera, Mic, Plus, CheckCircle2, Circle, Square, Radio,
+  List, Image as ImageIcon, AlertTriangle, Bot,
 } from 'lucide-react'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -93,10 +94,11 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   const [inspection, setInspection]     = useState<Inspection | null>(null)
   const [items, setItems]               = useState<Item[]>([])
   const [currentRoomIdx, setRoomIdx]    = useState(0)
-  const [expandedId, setExpandedId]     = useState<string | null>(null)
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen]     = useState(false)
   const [shareUrl,   setShareUrl]       = useState<string | null>(null)
   const [shareCopied, setShareCopied]   = useState(false)
+  const [shareModalUrl, setShareModalUrl] = useState<string | null>(null)
   const [showWelcome, setShowWelcome]   = useState(false)
   const [addModal, setAddModal]         = useState(false)
   const [newItemText, setNewItemText]   = useState('')
@@ -108,6 +110,8 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   const [userId, setUserId]             = useState<string | null>(null)
   const [needsSeverity, setNeedsSeverity] = useState<string | null>(null)
   const [snapbotPhoto, setSnapbotPhoto] = useState<{ base64: string; mimeType: string } | null>(null)
+  const [activeTab, setActiveTab]       = useState<'list' | 'photos' | 'fails' | 'bot'>('list')
+  const [snapbotOpen, setSnapbotOpen]   = useState(false)
 
   const noteTimers   = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const timerRef     = useRef<ReturnType<typeof setInterval>>()
@@ -117,6 +121,7 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   const recognitionRef = useRef<{ stop: () => void } | null>(null)
   const transcriptRef  = useRef<string>('')
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const activePhotoItemId = useRef<string | null>(null)
 
   // ── Derived rooms ──────────────────────────────────────────────────────────
@@ -258,7 +263,7 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   async function saveResponse(item: Item, response: Response) {
     startTimer()
     patchItem(item.id, { response, severity: response !== 'fail' ? null : item.severity })
-    if (expandedId !== item.id) setExpandedId(item.id)
+    if (response === 'fail') setSelectedItemId(item.id)
 
     await supabase.from('checklist_items').update({
       response,
@@ -296,6 +301,11 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
 
   // ── Photo upload ───────────────────────────────────────────────────────────
   function openCamera(itemId: string) {
+    activePhotoItemId.current = itemId
+    cameraInputRef.current?.click()
+  }
+
+  function openGallery(itemId: string) {
     activePhotoItemId.current = itemId
     photoInputRef.current?.click()
   }
@@ -337,8 +347,12 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   }
 
   async function analyseWithSnapBot(photoUrl: string) {
+    // Always open SnapBot first so user sees something happening
+    setSnapbotOpen(false)
+    setTimeout(() => setSnapbotOpen(true), 0)
     try {
       const res = await fetch(photoUrl)
+      if (!res.ok) throw new Error('Photo fetch failed')
       const blob = await res.blob()
       const mimeType = (blob.type || 'image/jpeg') as string
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -349,7 +363,7 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
       })
       setSnapbotPhoto({ base64, mimeType })
     } catch {
-      // silently ignore — SnapBot just won't open
+      // SnapBot is already open — user can ask questions manually
     }
   }
 
@@ -367,17 +381,20 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       chunksRef.current = []
-      const mr = new MediaRecorder(stream)
+      const recMime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm'
+      const mr = new MediaRecorder(stream, { mimeType: recMime })
       mediaRef.current = mr
 
       mr.ondataavailable = e => chunksRef.current.push(e.data)
       mr.onstop = async () => {
         stream.getTracks().forEach(t => t.stop())
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        const path = `${userId}/${inspection_id}/${itemId}/${Date.now()}.webm`
+        const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm'
+        const ext = mimeType === 'audio/mp4' ? 'mp4' : 'webm'
+        const blob = new Blob(chunksRef.current, { type: mimeType })
+        const path = `${userId}/${inspection_id}/${itemId}/${Date.now()}.${ext}`
         const { data: uploaded } = await supabase.storage
           .from('voice-notes')
-          .upload(path, blob, { contentType: 'audio/webm' })
+          .upload(path, blob, { contentType: mimeType })
         if (!uploaded) return
         const { data: { publicUrl } } = supabase.storage.from('voice-notes').getPublicUrl(path)
         const transcript = transcriptRef.current.trim() || null
@@ -470,7 +487,7 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   // ── Room navigation ────────────────────────────────────────────────────────
   function goToRoom(idx: number) {
     setRoomIdx(idx)
-    setExpandedId(null)
+    setSelectedItemId(null)
     setDrawerOpen(false)
     localStorage.setItem(ROOM_KEY(inspection_id), String(idx))
     window.scrollTo({ top: 0, behavior: 'instant' })
@@ -575,14 +592,9 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
   return (
     <div className="min-h-screen bg-[#111827] text-snap-white flex flex-col">
 
-      {/* Hidden photo input */}
-      <input
-        ref={photoInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handlePhotoSelected}
-      />
+      {/* Hidden inputs — separate camera and gallery to fix iOS black screen */}
+      <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelected} />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelected} />
 
       {/* ── FIXED HEADER ──────────────────────────────────────────────────── */}
       <div className="fixed top-0 left-0 right-0 z-40 bg-[#0A0F1A]/95 backdrop-blur-md border-b border-white/5">
@@ -612,23 +624,24 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
           {/* Share live */}
           <button
             onClick={async () => {
-              if (shareUrl) {
-                await navigator.clipboard.writeText(shareUrl)
-                setShareCopied(true)
-                setTimeout(() => setShareCopied(false), 2000)
-                return
-              }
-              const res = await fetch('/api/view-token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ inspection_id }),
-              })
-              if (res.ok) {
+              const url = shareUrl || await (async () => {
+                const res = await fetch('/api/view-token', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ inspection_id }),
+                })
+                if (!res.ok) return null
                 const { viewUrl } = await res.json()
                 setShareUrl(viewUrl)
-                await navigator.clipboard.writeText(viewUrl)
+                return viewUrl as string
+              })()
+              if (!url) return
+              try {
+                await navigator.clipboard.writeText(url)
                 setShareCopied(true)
                 setTimeout(() => setShareCopied(false), 2000)
+              } catch {
+                setShareModalUrl(url)
               }
             }}
             aria-label={shareCopied ? 'Link copied' : 'Share live inspection link'}
@@ -671,218 +684,182 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
         </div>
       </div>
 
+      {/* ── PAYMENT REMINDER (first room only) ────────────────────────────── */}
+      {currentRoomIdx === 0 && (
+        <div className="fixed top-[108px] left-0 right-0 z-30 px-3 py-2">
+          <div className="max-w-2xl mx-auto bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-2 flex items-center gap-2">
+            <span className="text-amber-400 text-sm">💡</span>
+            <p className="font-grotesk text-xs text-amber-300/80">
+              Free to complete — you only pay when you download your report.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── PHOTOS TAB ───────────────────────────────────────────────────── */}
+      {activeTab === 'photos' && (
+        <div className={`flex-1 pb-24 px-3 ${currentRoomIdx === 0 ? 'pt-[152px]' : 'pt-[108px]'}`}>
+          <p className="font-grotesk text-xs text-white/30 mb-3">All photos this inspection</p>
+          <div className="grid grid-cols-3 gap-2">
+            {items.flatMap(i => i.photos.map(url => ({ url, item: i }))).map(({ url, item }, idx) => (
+              <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-white/10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                  <p className="font-grotesk text-[9px] text-white/70 truncate">{item.item_description}</p>
+                </div>
+              </div>
+            ))}
+            {items.flatMap(i => i.photos).length === 0 && (
+              <div className="col-span-3 text-center py-16">
+                <Camera size={32} className="text-white/20 mx-auto mb-3" />
+                <p className="font-grotesk text-sm text-white/30">No photos yet</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── FAILS TAB ────────────────────────────────────────────────────── */}
+      {activeTab === 'fails' && (
+        <div className={`flex-1 pb-24 px-3 space-y-3 ${currentRoomIdx === 0 ? 'pt-[152px]' : 'pt-[108px]'}`}>
+          <p className="font-grotesk text-xs text-white/30 mb-1">Failed items across all rooms</p>
+          {items.filter(i => i.response === 'fail').length === 0 ? (
+            <div className="text-center py-16">
+              <Check size={32} className="text-white/20 mx-auto mb-3" />
+              <p className="font-grotesk text-sm text-white/30">No failed items yet</p>
+            </div>
+          ) : (
+            items.filter(i => i.response === 'fail').map(item => (
+              <div key={item.id} className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="font-grotesk text-sm font-medium text-white">{item.item_description}</p>
+                  {item.severity && (
+                    <span className="flex-shrink-0 text-xs font-grotesk font-semibold px-2 py-0.5 rounded-full"
+                      style={{
+                        background: item.severity === 'critical' ? 'rgba(255,77,79,0.2)' : item.severity === 'major' ? 'rgba(255,107,53,0.2)' : 'rgba(255,179,64,0.2)',
+                        color: item.severity === 'critical' ? '#FF4D4F' : item.severity === 'major' ? '#FF6B35' : '#FFB340',
+                      }}>
+                      {item.severity}
+                    </span>
+                  )}
+                </div>
+                <p className="font-grotesk text-xs text-white/40">{item.room}</p>
+                {item.photos.length > 0 && (
+                  <div className="flex gap-2 mt-3">
+                    {item.photos.slice(0, 3).map((url, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={url} alt="" className="w-16 h-16 rounded-lg object-cover border border-white/10" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* ── ITEMS LIST ────────────────────────────────────────────────────── */}
-      <div className="flex-1 pt-[108px] pb-24 px-3 space-y-3">
+      {activeTab === 'list' && <div className={`flex-1 pb-28 px-3 space-y-2 ${currentRoomIdx === 0 ? 'pt-[152px]' : 'pt-[108px]'}`}>
         {room.items.map((item) => {
-          const isExpanded = expandedId === item.id
-          const isSaved    = savedIds.has(item.id)
+          const isSaved = savedIds.has(item.id)
+          const hasDetails = item.photos.length > 0 || item.written_note || item.voice_note_url
 
           return (
             <div
               key={item.id}
-              className="rounded-xl border transition-all duration-200"
+              className="rounded-xl overflow-hidden border transition-all duration-200"
               style={{
                 background: '#1C2840',
                 borderColor: item.response === 'pass'
-                  ? 'rgba(0,214,143,0.25)'
+                  ? 'rgba(0,214,143,0.2)'
                   : item.response === 'fail'
-                  ? 'rgba(255,77,79,0.25)'
+                  ? 'rgba(255,77,79,0.2)'
                   : item.response === 'na'
-                  ? 'rgba(255,255,255,0.1)'
-                  : 'rgba(255,255,255,0.07)',
-                padding: 16,
+                  ? 'rgba(255,255,255,0.08)'
+                  : 'rgba(255,255,255,0.06)',
               }}
             >
-              {/* Item description */}
-              <div className="flex items-start justify-between gap-2 mb-4">
-                <div className="flex items-start gap-2 flex-1">
+              {/* Tap-to-detail header */}
+              <button
+                onClick={() => setSelectedItemId(item.id)}
+                className="w-full text-left px-4 pt-4 pb-3 flex items-start justify-between gap-3"
+              >
+                <div className="flex items-start gap-2 flex-1 min-w-0">
                   {item.is_custom && (
-                    <span className="flex-shrink-0 mt-0.5 bg-snap-teal/20 text-snap-teal text-[10px] font-semibold px-2 py-0.5 rounded-full font-grotesk">
+                    <span className="flex-shrink-0 mt-0.5 bg-snap-teal/20 text-snap-teal text-[9px] font-semibold px-1.5 py-0.5 rounded-full font-grotesk">
                       Custom
                     </span>
                   )}
-                  <p className="font-grotesk font-medium text-[15px] leading-relaxed text-snap-white">
+                  <p className="font-grotesk font-medium text-[14px] leading-snug text-snap-white">
                     {item.item_description}
                   </p>
                 </div>
-                {isSaved && (
-                  <span className="flex-shrink-0 text-snap-pass text-xs font-grotesk flex items-center gap-1">
-                    <CheckCircle2 size={12} /> Saved
-                  </span>
-                )}
-              </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {isSaved && <CheckCircle2 size={13} className="text-snap-pass" />}
+                  {hasDetails && (
+                    <span className="font-grotesk text-[10px] text-white/30">
+                      {[
+                        item.photos.length > 0 && `${item.photos.length}📷`,
+                        item.voice_note_url && '🎙',
+                        item.written_note && '📝',
+                      ].filter(Boolean).join(' ')}
+                    </span>
+                  )}
+                  {item.response === 'fail' && item.severity && (
+                    <span className="text-[10px] font-grotesk font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: item.severity === 'critical' ? 'rgba(255,77,79,0.2)' : item.severity === 'major' ? 'rgba(255,107,53,0.2)' : 'rgba(255,179,64,0.2)',
+                        color: item.severity === 'critical' ? '#FF4D4F' : item.severity === 'major' ? '#FF6B35' : '#FFB340',
+                      }}>
+                      {item.severity}
+                    </span>
+                  )}
+                  {item.response === 'fail' && !item.severity && (
+                    <span className="text-[10px] font-grotesk text-snap-fail/70">severity?</span>
+                  )}
+                  <ChevronRight size={14} className="text-white/20" />
+                </div>
+              </button>
 
               {/* Pass / Fail / NA buttons */}
-              <div className="flex gap-0 rounded-lg overflow-hidden mb-0">
-                {/* PASS */}
+              <div className="flex border-t border-white/5">
                 <button
                   onClick={() => saveResponse(item, 'pass')}
-                  className="flex-1 h-12 flex items-center justify-center gap-1.5 font-grotesk font-semibold text-sm transition-all rounded-l-lg border"
+                  className="flex-1 h-11 flex items-center justify-center gap-1.5 font-grotesk font-semibold text-sm transition-all"
                   style={{
-                    background: item.response === 'pass' ? '#00D68F' : 'rgba(0,214,143,0.1)',
-                    borderColor: 'rgba(0,214,143,0.2)',
-                    color: item.response === 'pass' ? '#0A0F1A' : '#00D68F',
+                    background: item.response === 'pass' ? 'rgba(0,214,143,0.15)' : 'transparent',
+                    color: item.response === 'pass' ? '#00D68F' : 'rgba(255,255,255,0.3)',
+                    borderRight: '1px solid rgba(255,255,255,0.05)',
                   }}
                 >
-                  <Check size={15} />
+                  <Check size={14} strokeWidth={item.response === 'pass' ? 3 : 2} />
                   Pass
                 </button>
-
-                {/* FAIL */}
                 <button
                   onClick={() => saveResponse(item, 'fail')}
-                  className="flex-1 h-12 flex items-center justify-center gap-1.5 font-grotesk font-semibold text-sm transition-all border-y"
+                  className="flex-1 h-11 flex items-center justify-center gap-1.5 font-grotesk font-semibold text-sm transition-all"
                   style={{
-                    background: item.response === 'fail' ? '#FF4D4F' : 'rgba(255,77,79,0.1)',
-                    borderColor: 'rgba(255,77,79,0.2)',
-                    color: item.response === 'fail' ? '#ffffff' : '#FF4D4F',
-                    borderLeft: '1px solid rgba(255,77,79,0.2)',
-                    borderRight: '1px solid rgba(255,77,79,0.2)',
+                    background: item.response === 'fail' ? 'rgba(255,77,79,0.15)' : 'transparent',
+                    color: item.response === 'fail' ? '#FF4D4F' : 'rgba(255,255,255,0.3)',
+                    borderRight: '1px solid rgba(255,255,255,0.05)',
                   }}
                 >
-                  <X size={15} />
+                  <X size={14} strokeWidth={item.response === 'fail' ? 3 : 2} />
                   Fail
                 </button>
-
-                {/* N/A */}
                 <button
                   onClick={() => saveResponse(item, 'na')}
-                  className="flex-1 h-12 flex items-center justify-center gap-1.5 font-grotesk font-semibold text-sm transition-all rounded-r-lg border"
+                  className="flex-1 h-11 flex items-center justify-center gap-1.5 font-grotesk font-semibold text-sm transition-all"
                   style={{
-                    background: item.response === 'na' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    color: item.response === 'na' ? '#ffffff' : 'rgba(255,255,255,0.5)',
+                    background: item.response === 'na' ? 'rgba(255,255,255,0.08)' : 'transparent',
+                    color: item.response === 'na' ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
                   }}
                 >
-                  <Minus size={15} />
+                  <Minus size={14} strokeWidth={item.response === 'na' ? 3 : 2} />
                   N/A
                 </button>
               </div>
-
-              {/* Expansion panel */}
-              {isExpanded && (
-                <div className="mt-4 space-y-4">
-
-                  {/* Action buttons row */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openCamera(item.id)}
-                      disabled={item.photos.length >= 3}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 font-grotesk text-xs text-white/60 hover:text-white hover:border-white/25 transition-all disabled:opacity-30"
-                    >
-                      <Camera size={14} />
-                      Photo {item.photos.length > 0 && `(${item.photos.length}/3)`}
-                    </button>
-                    <button
-                      onClick={() => toggleRecording(item.id)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border font-grotesk text-xs transition-all ${
-                        recording === item.id
-                          ? 'border-snap-fail bg-snap-fail/20 text-snap-fail'
-                          : 'border-white/10 text-white/60 hover:text-white hover:border-white/25'
-                      }`}
-                    >
-                      {recording === item.id ? <><Square size={12} /> Stop</> : <><Mic size={14} /> Voice</>}
-                    </button>
-                  </div>
-
-                  {/* Severity (only for fails) */}
-                  {item.response === 'fail' && (
-                    <div>
-                      <p className="font-grotesk text-xs text-white/40 mb-2">
-                        Severity {!item.severity && <span className="text-snap-fail">— please select</span>}
-                      </p>
-                      <div className="flex gap-2">
-                        {([
-                          ['minor',    'Minor cosmetic', '#FFB340'],
-                          ['major',    'Major defect',   '#FF6B35'],
-                          ['critical', 'Critical issue',  '#FF4D4F'],
-                        ] as const).map(([val, label, colour]) => (
-                          <button
-                            key={val}
-                            onClick={() => saveSeverity(item.id, val)}
-                            className="flex-1 py-2 rounded-lg font-grotesk text-xs font-semibold border transition-all"
-                            style={{
-                              borderColor: item.severity === val ? colour : 'rgba(255,255,255,0.1)',
-                              background: item.severity === val ? `${colour}20` : 'rgba(255,255,255,0.03)',
-                              color: item.severity === val ? colour : 'rgba(255,255,255,0.45)',
-                            }}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Photo thumbnails */}
-                  {item.photos.length > 0 && (
-                    <div className="flex gap-2 flex-wrap">
-                      {item.photos.map((url, idx) => (
-                        <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={url} alt="" className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => deletePhoto(item, url)}
-                            className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                          >
-                            <X size={10} className="text-white" />
-                          </button>
-                          {/* Ask SnapBot about this photo */}
-                          <button
-                            onClick={() => analyseWithSnapBot(url)}
-                            className="absolute bottom-0 left-0 right-0 py-1 text-center text-white font-bold transition-opacity"
-                            style={{ fontSize: 8, background: 'rgba(0,201,167,0.85)', lineHeight: '1.2' }}
-                            title="Ask SnapBot about this photo"
-                          >
-                            Ask SnapBot
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Voice note */}
-                  {item.voice_note_url && (
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <audio controls src={item.voice_note_url} className="w-full h-8" />
-                      {item.voice_note_transcript && (
-                        <p className="font-grotesk text-xs text-white/50 mt-2 italic">
-                          "{item.voice_note_transcript}"
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Recording indicator */}
-                  {recording === item.id && (
-                    <div className="flex items-center gap-2 bg-snap-fail/10 border border-snap-fail/20 rounded-lg p-3">
-                      <div className="w-2 h-2 bg-snap-fail rounded-full animate-pulse" />
-                      <span className="font-grotesk text-xs text-snap-fail">Recording — tap Stop when done</span>
-                    </div>
-                  )}
-
-                  {/* Text note */}
-                  <textarea
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 font-grotesk text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 resize-none"
-                    rows={2}
-                    placeholder="Add a note about this item…"
-                    value={item.written_note ?? ''}
-                    onChange={e => handleNoteChange(item.id, e.target.value)}
-                  />
-                </div>
-              )}
-
-              {/* Tap to expand hint */}
-              {item.response !== null && !isExpanded && (
-                <button
-                  onClick={() => setExpandedId(item.id)}
-                  className="mt-3 w-full font-grotesk text-xs text-white/25 hover:text-white/40 transition-colors text-center"
-                >
-                  {item.photos.length > 0 || item.written_note || item.voice_note_url
-                    ? `📎 ${[item.photos.length > 0 && `${item.photos.length} photo${item.photos.length > 1 ? 's' : ''}`, item.written_note && 'note', item.voice_note_url && 'voice'].filter(Boolean).join(' · ')} — tap to view`
-                    : 'Tap to add photo, note or voice…'}
-                </button>
-              )}
             </div>
           )
         })}
@@ -895,37 +872,253 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
           <Plus size={18} className="text-white/30" />
           <span className="font-grotesk text-sm text-white/30">Add your own check</span>
         </button>
-      </div>
+      </div>}
 
-      {/* ── BOTTOM NAV ────────────────────────────────────────────────────── */}
+      {/* ── ITEM DETAIL BOTTOM SHEET ──────────────────────────────────────── */}
+      {selectedItemId && (() => {
+        const item = items.find(i => i.id === selectedItemId)
+        if (!item) return null
+        return (
+          <>
+            <div
+              className="fixed inset-0 z-50 bg-black/60"
+              onClick={() => setSelectedItemId(null)}
+            />
+            <div
+              className="fixed left-0 right-0 bottom-0 z-50 flex flex-col rounded-t-2xl overflow-hidden"
+              style={{ background: '#0F172A', maxHeight: '90vh', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none' }}
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+                <div className="w-10 h-1 rounded-full bg-white/20" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-start justify-between px-5 pt-2 pb-3 gap-3 flex-shrink-0">
+                <div className="flex-1 min-w-0">
+                  <p className="font-grotesk text-[11px] text-white/35 mb-1">{item.room}</p>
+                  <h3 className="font-fraunces font-bold text-[17px] leading-snug text-white">{item.item_description}</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedItemId(null)}
+                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white/50 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-5">
+
+                {/* Pass / Fail / N/A */}
+                <div className="flex gap-2">
+                  {([
+                    ['pass', 'Pass', <Check key="p" size={15} />, '#00D68F', 'rgba(0,214,143,0.15)'],
+                    ['fail', 'Fail', <X key="f" size={15} />, '#FF4D4F', 'rgba(255,77,79,0.15)'],
+                    ['na',   'N/A',  <Minus key="n" size={15} />, 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.08)'],
+                  ] as const).map(([val, label, icon, col, bg]) => (
+                    <button
+                      key={val}
+                      onClick={() => saveResponse(item, val as Response)}
+                      className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl font-grotesk font-semibold text-sm transition-all border"
+                      style={{
+                        background: item.response === val ? bg : 'rgba(255,255,255,0.04)',
+                        borderColor: item.response === val ? col : 'rgba(255,255,255,0.08)',
+                        color: item.response === val ? col : 'rgba(255,255,255,0.35)',
+                      }}
+                    >
+                      {icon}{label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Severity (inline, only for fails) */}
+                {item.response === 'fail' && (
+                  <div>
+                    <p className="font-grotesk text-xs text-white/40 mb-2 flex items-center gap-1">
+                      Severity
+                      {!item.severity && <span className="text-snap-fail font-semibold">· required</span>}
+                    </p>
+                    <div className="flex gap-2">
+                      {([
+                        ['minor',    'Minor',    '#FFB340'],
+                        ['major',    'Major',    '#FF6B35'],
+                        ['critical', 'Critical', '#FF4D4F'],
+                      ] as const).map(([val, label, colour]) => (
+                        <button
+                          key={val}
+                          onClick={() => saveSeverity(item.id, val)}
+                          className="flex-1 py-3 rounded-xl font-grotesk text-sm font-semibold border transition-all"
+                          style={{
+                            borderColor: item.severity === val ? colour : 'rgba(255,255,255,0.08)',
+                            background: item.severity === val ? `${colour}20` : 'rgba(255,255,255,0.04)',
+                            color: item.severity === val ? colour : 'rgba(255,255,255,0.4)',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Photos */}
+                <div>
+                  <p className="font-grotesk text-xs text-white/40 mb-2">Photos ({item.photos.length}/3)</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {item.photos.map((url, idx) => (
+                      <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => deletePhoto(item, url)}
+                          className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center"
+                        >
+                          <X size={9} className="text-white" />
+                        </button>
+                        <button
+                          onClick={() => analyseWithSnapBot(url)}
+                          className="absolute bottom-0 left-0 right-0 py-1 text-center font-bold"
+                          style={{ fontSize: 7, background: 'rgba(0,201,167,0.85)', color: '#fff', lineHeight: '1.2' }}
+                        >
+                          Ask Bot
+                        </button>
+                      </div>
+                    ))}
+                    {item.photos.length < 3 && (
+                      <div className="flex flex-col gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => openCamera(item.id)}
+                          className="w-20 h-9 rounded-lg border border-white/15 flex items-center justify-center gap-1 hover:border-snap-teal/40 transition-all"
+                          style={{ background: 'rgba(0,201,167,0.08)' }}
+                        >
+                          <Camera size={13} className="text-snap-teal" />
+                          <span className="font-grotesk text-[9px] text-snap-teal font-semibold">Camera</span>
+                        </button>
+                        <button
+                          onClick={() => openGallery(item.id)}
+                          className="w-20 h-9 rounded-lg border border-white/15 flex items-center justify-center gap-1 hover:border-white/30 transition-all"
+                          style={{ background: 'rgba(255,255,255,0.04)' }}
+                        >
+                          <ImageIcon size={13} className="text-white/35" />
+                          <span className="font-grotesk text-[9px] text-white/35 font-semibold">Gallery</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Voice note */}
+                <div>
+                  {item.voice_note_url ? (
+                    <div className="bg-white/5 rounded-xl p-3 border border-white/08">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-grotesk text-xs text-white/40">Voice note</span>
+                        <button
+                          onClick={() => toggleRecording(item.id)}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg font-grotesk text-xs transition-all ${
+                            recording === item.id
+                              ? 'bg-snap-fail/20 text-snap-fail border border-snap-fail/30'
+                              : 'bg-white/5 text-white/40 border border-white/10'
+                          }`}
+                        >
+                          {recording === item.id ? <><Square size={10} /> Stop</> : <><Mic size={10} /> Re-record</>}
+                        </button>
+                      </div>
+                      <audio controls src={item.voice_note_url} className="w-full h-8" />
+                      {item.voice_note_transcript && (
+                        <p className="font-grotesk text-xs text-white/40 mt-2 italic">"{item.voice_note_transcript}"</p>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => toggleRecording(item.id)}
+                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border font-grotesk text-sm font-semibold transition-all ${
+                        recording === item.id
+                          ? 'border-snap-fail bg-snap-fail/15 text-snap-fail'
+                          : 'border-white/10 bg-white/4 text-white/45 hover:border-white/20'
+                      }`}
+                    >
+                      {recording === item.id ? (
+                        <><div className="w-2 h-2 bg-snap-fail rounded-full animate-pulse" /><Square size={14} /> Stop recording</>
+                      ) : (
+                        <><Mic size={16} /> Add voice note</>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Text note */}
+                <div>
+                  <p className="font-grotesk text-xs text-white/40 mb-2">Notes</p>
+                  <textarea
+                    className="w-full rounded-xl px-4 py-3 font-grotesk text-sm text-white placeholder:text-white/25 outline-none resize-none border border-white/08 focus:border-white/20 transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.04)' }}
+                    rows={3}
+                    placeholder="Add a note about this item…"
+                    value={item.written_note ?? ''}
+                    onChange={e => handleNoteChange(item.id, e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )
+      })()}
+
+      {/* ── BOTTOM TAB BAR ────────────────────────────────────────────────── */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-3 border-t"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t"
         style={{ background: '#0A0F1A', borderColor: 'rgba(255,255,255,0.07)' }}
       >
-        <button
-          onClick={() => goToRoom(currentRoomIdx - 1)}
-          disabled={currentRoomIdx === 0}
-          className="flex items-center gap-1.5 font-grotesk text-sm text-white/50 disabled:opacity-20 hover:text-white transition-colors min-w-[100px]"
-        >
-          <ChevronLeft size={16} />
-          Prev Room
-        </button>
+        {/* Room nav strip (list tab only) */}
+        {activeTab === 'list' && (
+          <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+            <button
+              onClick={() => goToRoom(currentRoomIdx - 1)}
+              disabled={currentRoomIdx === 0}
+              className="flex items-center gap-1 font-grotesk text-xs text-white/40 disabled:opacity-20 hover:text-white transition-colors"
+            >
+              <ChevronLeft size={14} /> Prev
+            </button>
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="flex-1 font-grotesk text-xs text-white/40 hover:text-white transition-colors text-center truncate"
+            >
+              {room.name} · {roomAnswered}/{room.items.length}
+            </button>
+            <button
+              onClick={nextRoom}
+              className="flex items-center gap-1 font-grotesk text-xs font-semibold"
+              style={{ color: '#00C9A7' }}
+            >
+              {isLastRoom ? 'Finish →' : <>Next <ChevronRight size={14} /></>}
+            </button>
+          </div>
+        )}
 
-        <button
-          onClick={() => setDrawerOpen(true)}
-          className="flex-1 flex items-center justify-center gap-2 font-grotesk text-sm text-white/50 hover:text-white transition-colors"
-        >
-          <LayoutGrid size={16} />
-          Rooms
-        </button>
-
-        <button
-          onClick={nextRoom}
-          className="flex items-center gap-1.5 font-grotesk text-sm font-semibold min-w-[120px] justify-end"
-          style={{ color: '#00C9A7' }}
-        >
-          {isLastRoom ? 'Finish →' : <>Next Room <ChevronRight size={16} /></>}
-        </button>
+        {/* Tabs */}
+        <div className="flex items-center">
+          {([
+            { id: 'list',   icon: <List size={20} />,          label: 'Checklist' },
+            { id: 'photos', icon: <ImageIcon size={20} />,      label: 'Photos' },
+            { id: 'fails',  icon: <AlertTriangle size={20} />, label: `Fails${items.filter(i => i.response === 'fail').length > 0 ? ` (${items.filter(i => i.response === 'fail').length})` : ''}` },
+            { id: 'bot',    icon: <Bot size={20} />,           label: 'SnapBot' },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                if (tab.id === 'bot') { setSnapbotOpen(false); setTimeout(() => setSnapbotOpen(true), 0); return }
+                setActiveTab(tab.id)
+              }}
+              className="flex-1 flex flex-col items-center gap-1 py-2 transition-colors"
+              style={{ color: activeTab === tab.id ? '#00C9A7' : 'rgba(255,255,255,0.35)' }}
+            >
+              {tab.icon}
+              <span className="font-grotesk text-[10px]">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── ROOM DRAWER ───────────────────────────────────────────────────── */}
@@ -1019,11 +1212,38 @@ export default function ChecklistPage({ params }: { params: { inspection_id: str
         </div>
       )}
 
+      {/* ── SHARE MODAL (clipboard fallback) ──────────────────────────────── */}
+      {shareModalUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShareModalUrl(null)} />
+          <div className="relative w-full max-w-sm bg-snap-ink-mid rounded-2xl border border-white/10 p-6">
+            <h2 className="font-fraunces text-lg font-bold mb-2">Share inspection link</h2>
+            <p className="font-grotesk text-sm text-white/50 mb-4">Copy this link and send it to whoever you want to share your live inspection with.</p>
+            <div className="flex items-center gap-2 bg-black/30 rounded-xl px-4 py-3 mb-4">
+              <span className="font-grotesk text-xs text-white/70 break-all flex-1">{shareModalUrl}</span>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(shareModalUrl).catch(() => {})
+                setShareCopied(true)
+                setTimeout(() => { setShareCopied(false); setShareModalUrl(null) }, 1500)
+              }}
+              className="btn-primary w-full font-bold"
+              style={{ fontWeight: 700 }}
+            >
+              {shareCopied ? '✓ Copied!' : 'Copy link'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── SNAPBOT ───────────────────────────────────────────────────────── */}
       <SnapBot
         photoBase64={snapbotPhoto?.base64}
         photoMimeType={snapbotPhoto?.mimeType}
         onPhotoAnalysed={() => setSnapbotPhoto(null)}
+        forceOpen={snapbotOpen}
+        onClose={() => { setSnapbotOpen(false) }}
         bottomOffset={84}
       />
 

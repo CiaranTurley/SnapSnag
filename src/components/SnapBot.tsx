@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { X, Send, Wrench, MessageSquare } from 'lucide-react'
+import { X, Send, Wrench, MessageSquare, Camera } from 'lucide-react'
 import { useCountry } from '@/lib/CountryContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,28 +20,33 @@ interface SnapBotProps {
   onPhotoAnalysed?: () => void
   /** Extra bottom offset in px — use when a fixed bottom bar would obscure the button */
   bottomOffset?: number
+  /** Programmatically open the chat panel */
+  forceOpen?: boolean
+  /** Called when the user closes the chat panel */
+  onClose?: () => void
+  /** Hide the floating FAB button (e.g. when parent renders its own trigger) */
+  hideFab?: boolean
 }
 
 // ─── Opening message ──────────────────────────────────────────────────────────
 
-const WARRANTY_NAMES: Record<string, string> = {
-  IE: 'HomeBond',
-  UK: 'NHBC Buildmark',
-  AU: 'HBC Fund',
-  US: 'Builder Warranty',
-  CA: 'Tarion warranty',
+const QUICK_REPLIES: Record<string, string[]> = {
+  IE: ['How do I raise a defect?', 'Heat pump clearances?', 'What counts as critical?'],
+  UK: ['How do I raise a defect?', 'Heat pump clearances?', 'What counts as critical?'],
+  AU: ['How do I raise a defect?', 'Heat pump clearances?', 'What counts as critical?'],
+  US: ['How do I raise a defect?', 'Heat pump clearances?', 'What counts as critical?'],
+  CA: ['How do I raise a defect?', 'Heat pump clearances?', 'What counts as critical?'],
 }
 
-function buildOpeningMessage(warrantyName: string): string {
+function buildOpeningMessage(): string {
   return `Hi! I'm SnapBot, your construction and snagging expert.
 
-I can help you with questions about:
-• Defects and what they mean
-• Your ${warrantyName} warranty rights
-• Building standards and regulations
-• Dealing with your builder
+I can help you with:
+• Identifying defects and what they mean
 • What to check in any room
 • How to photograph defects properly
+• Dealing with your builder
+• Estimated repair costs
 
 Ask me anything about your new home!`
 }
@@ -70,9 +75,8 @@ function formatTime(date: Date): string {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, bottomOffset = 20 }: SnapBotProps) {
+export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, bottomOffset = 20, forceOpen, onClose, hideFab }: SnapBotProps) {
   const { countryCode } = useCountry()
-  const warrantyName = WARRANTY_NAMES[countryCode] ?? 'HomeBond'
 
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -84,6 +88,7 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, b
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   // Typewriter effect state
   const [typedContent, setTypedContent] = useState('')
@@ -167,12 +172,19 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, b
       setMessages([
         {
           role: 'assistant',
-          content: buildOpeningMessage(warrantyName),
+          content: buildOpeningMessage(),
           timestamp: new Date(),
         },
       ])
     }
-  }, [hasOpened, warrantyName])
+  }, [hasOpened])
+
+  // Sync external forceOpen with internal open state
+  useEffect(() => {
+    if (forceOpen === true) handleOpen()
+    else if (forceOpen === false) setOpen(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceOpen])
 
   // Auto-open and analyse when a photo is passed
   useEffect(() => {
@@ -347,7 +359,7 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, b
               </div>
             </div>
             <button
-              onClick={() => setOpen(false)}
+              onClick={() => { setOpen(false); onClose?.() }}
               className="p-1 rounded-lg transition-colors"
               style={{ color: '#6B7280' }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')}
@@ -361,7 +373,7 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, b
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ scrollBehavior: 'smooth' }}>
             {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                 <div style={{ maxWidth: '85%' }}>
                   <div
                     className="px-3 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
@@ -385,6 +397,21 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, b
                     {formatTime(msg.timestamp)}
                   </p>
                 </div>
+                {/* Quick-reply chips after first assistant message */}
+                {i === 0 && msg.role === 'assistant' && messages.length === 1 && !streaming && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(QUICK_REPLIES[countryCode] ?? QUICK_REPLIES['IE']).map(chip => (
+                      <button
+                        key={chip}
+                        onClick={() => sendMessage(chip)}
+                        className="px-3 py-1.5 rounded-full font-grotesk text-xs font-semibold transition-all"
+                        style={{ background: 'rgba(0,201,167,0.12)', border: '1px solid rgba(0,201,167,0.25)', color: '#00C9A7' }}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
 
@@ -404,6 +431,37 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, b
             className="flex-shrink-0 p-3 flex items-end gap-2"
             style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: '#0F172A' }}
           >
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = () => {
+                  const dataUrl = reader.result as string
+                  const base64 = dataUrl.split(',')[1]
+                  const mimeType = file.type || 'image/jpeg'
+                  sendMessage('', base64, mimeType)
+                }
+                reader.readAsDataURL(file)
+                e.target.value = ''
+              }}
+            />
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={streaming}
+              className="rounded-xl p-2.5 flex-shrink-0 transition-opacity"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                opacity: streaming ? 0.4 : 1,
+              }}
+              aria-label="Attach photo"
+            >
+              <Camera size={16} color="#9CA3AF" strokeWidth={2} />
+            </button>
             <textarea
               ref={inputRef}
               value={input}
@@ -444,7 +502,7 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, b
       )}
 
       {/* ── Floating Button ───────────────────────────────────────────────── */}
-      <button
+      {hideFab ? null : <button
         onClick={open ? () => setOpen(false) : handleOpen}
         className="fixed right-5 z-50 flex items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
         style={{
@@ -481,7 +539,7 @@ export default function SnapBot({ photoBase64, photoMimeType, onPhotoAnalysed, b
             1
           </span>
         )}
-      </button>
+      </button>}
 
       {/* ── Keyframes ─────────────────────────────────────────────────────── */}
       <style jsx global>{`

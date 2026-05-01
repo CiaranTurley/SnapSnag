@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import SnapSnagLogo from '@/components/SnapSnagLogo'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 
@@ -9,12 +10,11 @@ import { createSupabaseBrowserClient } from '@/lib/supabase'
 
 interface Inspection {
   id: string
-  address: string | null
+  property_address_line1: string | null
   property_type: string | null
   bedrooms: number | null
   bathrooms: number | null
   created_at: string
-  completed_at: string | null
   builder_name: string | null
 }
 
@@ -41,7 +41,7 @@ interface BuilderPortalItem {
   updated_at: string
 }
 
-type FilterType = 'all' | 'critical' | 'major' | 'minor' | 'fixed'
+type FilterType = 'open' | 'resolved' | 'major'
 type ActionType = 'fix' | 'dispute' | 'progress' | null
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ export default function BuilderDashboardPage() {
   const [builderItems, setBuilderItems] = useState<Map<string, BuilderPortalItem>>(new Map())
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState(false)
-  const [filter, setFilter] = useState<FilterType>('all')
+  const [filter, setFilter] = useState<FilterType>('open')
 
   // Modal state
   const [activeItem, setActiveItem] = useState<ChecklistItem | null>(null)
@@ -141,7 +141,7 @@ export default function BuilderDashboardPage() {
     // Look up inspection by verification code
     const { data: insp, error: inspError } = await supabase
       .from('inspections')
-      .select('id, address, property_type, bedrooms, bathrooms, created_at, completed_at, builder_name')
+      .select('id, property_address_line1, property_type, bedrooms, bathrooms, created_at, builder_name')
       .eq('verification_code', verificationCode)
       .single()
 
@@ -292,18 +292,19 @@ export default function BuilderDashboardPage() {
 
   // ── Filter items ──────────────────────────────────────────────────────────────
 
+  const resolvedCount = Array.from(builderItems.values()).filter(b => b.status === 'fixed').length
+  const majorCount = items.filter(i => i.severity === 'major' || i.severity === 'critical').length
+  const openCount = items.length - resolvedCount
+  const totalCount = items.length
+
   const filteredItems = items.filter(item => {
     const bItem = builderItems.get(item.id)
     const status = bItem?.status ?? 'outstanding'
-    if (filter === 'fixed') return status === 'fixed'
-    if (filter === 'critical') return item.severity === 'critical' && status !== 'fixed'
-    if (filter === 'major') return item.severity === 'major' && status !== 'fixed'
-    if (filter === 'minor') return (item.severity === 'minor' || !item.severity) && status !== 'fixed'
-    return true // 'all'
+    const isFixed = status === 'fixed'
+    if (filter === 'resolved') return isFixed
+    if (filter === 'major') return (item.severity === 'major' || item.severity === 'critical') && !isFixed
+    return !isFixed // 'open'
   })
-
-  const resolvedCount = Array.from(builderItems.values()).filter(b => b.status === 'fixed').length
-  const totalCount = items.length
 
   // ── Auth error ────────────────────────────────────────────────────────────────
 
@@ -487,23 +488,16 @@ export default function BuilderDashboardPage() {
       )}
 
       {/* Page header */}
-      <div className="bg-snap-ink border-b border-white/10 sticky top-0 z-30">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <div className="bg-snap-ink border-b border-white/08 sticky top-0 z-30">
+        <div className="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <SnapSnagLogo size="sm" />
-            <div className="h-6 w-px bg-white/10" />
-            <span className="font-grotesk text-xs text-snap-teal tracking-widest uppercase">Builder Portal</span>
+            <div className="h-5 w-px bg-white/10" />
+            <span className="font-grotesk text-xs text-snap-teal font-semibold">Builder Portal</span>
+            <span className="font-grotesk text-xs text-white/30">· {verificationCode}</span>
           </div>
           <div className="text-right">
-            <p className="font-grotesk text-xs text-white/40">
-              {resolvedCount} of {totalCount} resolved
-            </p>
-            <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden mt-1">
-              <div
-                className="h-full bg-snap-teal rounded-full transition-all"
-                style={{ width: totalCount > 0 ? `${Math.round((resolvedCount / totalCount) * 100)}%` : '0%' }}
-              />
-            </div>
+            <p className="font-grotesk text-[11px] text-white/35">{resolvedCount}/{totalCount} resolved</p>
           </div>
         </div>
       </div>
@@ -513,10 +507,10 @@ export default function BuilderDashboardPage() {
         {/* Property info */}
         <div className="mb-6">
           <h1 className="font-fraunces text-xl font-bold text-white mb-1">
-            {inspection?.address ?? 'Inspection Report'}
+            {inspection?.property_address_line1 ?? 'Inspection Report'}
           </h1>
           <p className="font-grotesk text-white/50 text-sm">
-            Inspected {formatDate(inspection?.completed_at ?? inspection?.created_at ?? '')}
+            Inspected {formatDate(inspection?.created_at ?? '')}
             {inspection?.property_type ? ` · ${inspection.property_type}` : ''}
             {inspection?.bedrooms ? ` · ${inspection.bedrooms} bed` : ''}
           </p>
@@ -536,24 +530,20 @@ export default function BuilderDashboardPage() {
           ))}
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        {/* Filter pills */}
+        <div className="flex gap-2 mb-5">
           {([
-            { key: 'all', label: 'All items' },
-            { key: 'critical', label: 'Critical' },
-            { key: 'major', label: 'Major' },
-            { key: 'minor', label: 'Minor' },
-            { key: 'fixed', label: 'Fixed' },
+            { key: 'open',     label: `${openCount} Open` },
+            { key: 'resolved', label: `${resolvedCount} Resolved` },
+            { key: 'major',    label: `${majorCount} Major` },
           ] as { key: FilterType; label: string }[]).map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setFilter(tab.key)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full font-grotesk text-sm font-bold transition-colors ${
-                filter === tab.key
-                  ? 'bg-snap-teal text-snap-ink'
-                  : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
-              }`}
-            >
+            <button key={tab.key} onClick={() => setFilter(tab.key)}
+              className="flex-shrink-0 px-4 py-1.5 rounded-full font-grotesk text-sm font-semibold transition-all"
+              style={{
+                background: filter === tab.key ? 'rgba(0,201,167,0.15)' : 'rgba(255,255,255,0.05)',
+                color: filter === tab.key ? '#00C9A7' : 'rgba(255,255,255,0.4)',
+                border: `1px solid ${filter === tab.key ? 'rgba(0,201,167,0.3)' : 'rgba(255,255,255,0.08)'}`,
+              }}>
               {tab.label}
             </button>
           ))}
@@ -562,131 +552,137 @@ export default function BuilderDashboardPage() {
         {/* Items */}
         {filteredItems.length === 0 ? (
           <div className="text-center py-16 text-white/30 font-grotesk text-sm">
-            {filter === 'fixed' ? 'No items marked as fixed yet.' : 'No items in this category.'}
+            No items in this category.
           </div>
         ) : (
-          <div className="space-y-4">
-            {filteredItems.map(item => {
+          <div className="rounded-2xl overflow-hidden border border-white/08" style={{ background: '#1C2840' }}>
+            {filteredItems.map((item, idx) => {
               const bItem = builderItems.get(item.id)
               const status = bItem?.status ?? 'outstanding'
               const isFixed = status === 'fixed'
+              const isDisputed = status === 'disputed'
+              const isInProgress = status === 'in_progress'
+
+              const severityDotColor = item.severity === 'critical' ? '#EF4444' : item.severity === 'major' ? '#F59E0B' : '#60A5FA'
 
               return (
-                <div
-                  key={item.id}
-                  className={`card border transition-all ${
-                    isFixed ? 'border-green-500/30 bg-green-500/5' : 'border-white/10'
-                  }`}
-                >
-                  {/* Item header */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <SeverityBadge severity={item.severity} />
-                        <StatusPill status={status} />
-                        {bItem?.buyer_accepted === true && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-500/20 text-green-300 font-grotesk">
-                            ✓ Buyer accepted
-                          </span>
+                <div key={item.id}>
+                  {idx > 0 && <div className="border-t border-white/06 mx-4" />}
+                  <div className="px-4 py-4">
+                    {/* Main row */}
+                    <div className="flex items-start gap-3">
+                      {/* Severity dot */}
+                      <div className="flex-shrink-0 mt-1.5">
+                        <div className="w-2 h-2 rounded-full" style={{ background: severityDotColor }} />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-grotesk text-sm font-semibold text-white leading-snug">{item.item_description}</p>
+                            <p className="font-grotesk text-xs text-white/35 mt-0.5">{item.room}</p>
+                          </div>
+
+                          {/* Right side: badges + action */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {/* Severity badge */}
+                            <span className="font-grotesk text-[10px] font-bold px-2 py-0.5 rounded-full"
+                              style={{
+                                background: item.severity === 'critical' ? 'rgba(239,68,68,0.15)' : item.severity === 'major' ? 'rgba(245,158,11,0.15)' : 'rgba(96,165,250,0.15)',
+                                color: item.severity === 'critical' ? '#EF4444' : item.severity === 'major' ? '#F59E0B' : '#60A5FA',
+                              }}>
+                              {(item.severity ?? 'minor').charAt(0).toUpperCase() + (item.severity ?? 'minor').slice(1)}
+                            </span>
+
+                            {/* Status / action */}
+                            {isFixed ? (
+                              <span className="font-grotesk text-[10px] font-bold px-2.5 py-1 rounded-full"
+                                style={{ background: 'rgba(34,197,94,0.15)', color: '#22C55E' }}>
+                                Done ✓
+                              </span>
+                            ) : isInProgress ? (
+                              <button onClick={() => openModal(item, 'fix')}
+                                className="font-grotesk text-[10px] font-bold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
+                                style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
+                                In Progress
+                              </button>
+                            ) : isDisputed ? (
+                              <span className="font-grotesk text-[10px] font-bold px-2.5 py-1 rounded-full"
+                                style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
+                                Disputed
+                              </span>
+                            ) : (
+                              <button onClick={() => openModal(item, 'fix')}
+                                className="font-grotesk text-xs font-bold px-3 py-1.5 rounded-lg transition-colors hover:opacity-90"
+                                style={{ background: 'rgba(0,201,167,0.15)', color: '#00C9A7', border: '1px solid rgba(0,201,167,0.25)' }}>
+                                Mark Resolved
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Expandable details */}
+                        {(item.note || (item.photo_urls && item.photo_urls.length > 0) || bItem?.builder_note || bItem?.builder_photo_url) && (
+                          <div className="mt-3 space-y-2">
+                            {item.note && (
+                              <p className="font-grotesk text-xs text-white/45 leading-relaxed">{item.note}</p>
+                            )}
+                            {item.photo_urls && item.photo_urls.length > 0 && (
+                              <div className="flex gap-2 flex-wrap">
+                                {item.photo_urls.map((url, i) => (
+                                  <button key={i} onClick={() => setEnlargedPhoto(url)}
+                                    className="w-16 h-16 rounded-lg overflow-hidden border border-white/10 hover:border-snap-teal transition-colors flex-shrink-0">
+                                    <img src={url} alt="Defect photo" className="w-full h-full object-cover" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {bItem?.builder_note && (
+                              <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                                <p className="font-grotesk text-[10px] text-white/35 mb-1">Your response</p>
+                                <p className="font-grotesk text-xs text-white/65">{bItem.builder_note}</p>
+                                {bItem.builder_photo_url && (
+                                  <button onClick={() => setEnlargedPhoto(bItem.builder_photo_url!)}
+                                    className="mt-2 w-16 h-16 rounded-lg overflow-hidden border border-white/10 block">
+                                    <img src={bItem.builder_photo_url} alt="Fix photo" className="w-full h-full object-cover" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )}
+
+                        {/* Buyer feedback */}
                         {bItem?.buyer_accepted === false && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-500/20 text-red-300 font-grotesk">
-                            ✗ Buyer not satisfied
-                          </span>
+                          <div className="mt-2 rounded-lg px-3 py-2" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                            <p className="font-grotesk text-xs text-red-400">Buyer not satisfied — needs more work</p>
+                            <button onClick={() => openModal(item, 'fix')}
+                              className="font-grotesk text-xs font-bold mt-2 px-3 py-1.5 rounded-lg"
+                              style={{ background: 'rgba(34,197,94,0.15)', color: '#22C55E' }}>
+                              Update fix
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Secondary actions for open items */}
+                        {!isFixed && !isInProgress && !isDisputed && (
+                          <div className="flex gap-2 mt-2">
+                            <button onClick={() => openModal(item, 'progress')}
+                              className="font-grotesk text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80"
+                              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}>
+                              In Progress
+                            </button>
+                            <button onClick={() => openModal(item, 'dispute')}
+                              className="font-grotesk text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80"
+                              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}>
+                              Dispute
+                            </button>
+                          </div>
                         )}
                       </div>
-                      <p className="font-grotesk text-white text-sm font-bold leading-snug">{item.item_description}</p>
-                      <p className="font-grotesk text-white/40 text-xs mt-1">{item.room}</p>
                     </div>
                   </div>
-
-                  {/* Buyer note */}
-                  {item.note && (
-                    <div className="bg-white/5 rounded-lg px-3 py-2 mb-3">
-                      <p className="font-grotesk text-xs text-white/40 mb-1">Inspector note:</p>
-                      <p className="font-grotesk text-sm text-white/70">{item.note}</p>
-                    </div>
-                  )}
-
-                  {/* Buyer photos */}
-                  {item.photo_urls && item.photo_urls.length > 0 && (
-                    <div className="flex gap-2 mb-3 flex-wrap">
-                      {item.photo_urls.map((url, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setEnlargedPhoto(url)}
-                          className="relative w-20 h-20 rounded-lg overflow-hidden border border-white/10 hover:border-snap-teal transition-colors flex-shrink-0"
-                        >
-                          <img src={url} alt="Defect photo" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Builder's response (if any) */}
-                  {bItem && (bItem.builder_note || bItem.builder_photo_url || bItem.dispute_reason) && (
-                    <div className={`rounded-lg px-3 py-3 mb-3 border ${
-                      isFixed ? 'bg-green-500/10 border-green-500/20' : 'bg-white/5 border-white/10'
-                    }`}>
-                      <p className="font-grotesk text-xs text-white/40 mb-2">Your response:</p>
-                      {bItem.builder_note && (
-                        <p className="font-grotesk text-sm text-white/80">{bItem.builder_note}</p>
-                      )}
-                      {bItem.dispute_reason && (
-                        <p className="font-grotesk text-sm text-white/80">{bItem.dispute_reason}</p>
-                      )}
-                      {bItem.builder_photo_url && (
-                        <button
-                          onClick={() => setEnlargedPhoto(bItem.builder_photo_url!)}
-                          className="mt-2 w-24 h-24 rounded-lg overflow-hidden border border-white/10 block"
-                        >
-                          <img src={bItem.builder_photo_url} alt="Fix photo" className="w-full h-full object-cover" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Buyer feedback */}
-                  {bItem?.buyer_accepted === false && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-3">
-                      <p className="font-grotesk text-xs text-red-400 mb-1">Buyer not satisfied:</p>
-                      <p className="font-grotesk text-sm text-white/70">The buyer has indicated this item needs more work.</p>
-                    </div>
-                  )}
-
-                  {/* Action buttons */}
-                  {!isFixed && (
-                    <div className="flex gap-2 flex-wrap mt-2">
-                      <button
-                        onClick={() => openModal(item, 'fix')}
-                        className="flex-1 min-w-[100px] min-h-[38px] rounded-xl bg-green-600 hover:bg-green-500 text-white font-grotesk text-xs font-bold transition-colors"
-                      >
-                        ✓ Mark as Fixed
-                      </button>
-                      <button
-                        onClick={() => openModal(item, 'progress')}
-                        className="flex-1 min-w-[100px] min-h-[38px] rounded-xl bg-amber-600/80 hover:bg-amber-600 text-white font-grotesk text-xs font-bold transition-colors"
-                      >
-                        ⟳ In Progress
-                      </button>
-                      <button
-                        onClick={() => openModal(item, 'dispute')}
-                        className="flex-1 min-w-[100px] min-h-[38px] rounded-xl bg-white/10 hover:bg-white/15 text-white/60 font-grotesk text-xs font-bold transition-colors"
-                      >
-                        ✗ Dispute
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Re-fix button if buyer not satisfied */}
-                  {isFixed && bItem?.buyer_accepted === false && (
-                    <button
-                      onClick={() => openModal(item, 'fix')}
-                      className="w-full min-h-[38px] rounded-xl bg-green-600 hover:bg-green-500 text-white font-grotesk text-xs font-bold transition-colors mt-2"
-                    >
-                      ✓ Update fix
-                    </button>
-                  )}
                 </div>
               )
             })}

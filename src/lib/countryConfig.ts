@@ -37,7 +37,7 @@ export const COUNTRY_CONFIG: Record<CountryCode, CountryConfig> = {
     oneTimePriceDisplay: '€19.95',
     professionalPrice: '€190–€240',
     expertMonthly: 2995,
-    expertAnnual: 24900,
+    expertAnnual: 24900, // €29.95/mo · €249/yr
     warrantyName: 'HomeBond',
     energyCertName: 'BER Certificate',
     electricalStandard: 'ETCI Wiring Regulations',
@@ -63,7 +63,7 @@ export const COUNTRY_CONFIG: Record<CountryCode, CountryConfig> = {
     oneTimePriceDisplay: '£23.95',
     professionalPrice: '£300–£600',
     expertMonthly: 2995,
-    expertAnnual: 24900,
+    expertAnnual: 24900, // £29.95/mo · £249/yr
     warrantyName: 'NHBC Buildmark',
     energyCertName: 'EPC Certificate',
     electricalStandard: '18th Edition IET Wiring Regs',
@@ -83,13 +83,13 @@ export const COUNTRY_CONFIG: Record<CountryCode, CountryConfig> = {
   AU: {
     name: 'Australia',
     currency: 'AUD',
-    symbol: '$',
+    symbol: 'A$',
     flag: 'AU',
     oneTimePrice: 3995,
     oneTimePriceDisplay: 'A$39.95',
     professionalPrice: 'A$400–A$800',
-    expertMonthly: 2995,
-    expertAnnual: 24900,
+    expertMonthly: 4995,
+    expertAnnual: 39900, // A$49.95/mo · A$399/yr
     warrantyName: 'HBC Fund',
     energyCertName: 'NatHERS Rating',
     electricalStandard: 'AS/NZS 3000 Wiring Rules',
@@ -114,8 +114,8 @@ export const COUNTRY_CONFIG: Record<CountryCode, CountryConfig> = {
     oneTimePrice: 2995,
     oneTimePriceDisplay: '$29.95',
     professionalPrice: '$400–$700',
-    expertMonthly: 2995,
-    expertAnnual: 24900,
+    expertMonthly: 3995,
+    expertAnnual: 32900, // $39.95/mo · $329/yr
     warrantyName: 'Builder Warranty',
     energyCertName: 'Energy Efficiency Certificate',
     electricalStandard: 'NEC (National Electrical Code)',
@@ -135,13 +135,13 @@ export const COUNTRY_CONFIG: Record<CountryCode, CountryConfig> = {
   CA: {
     name: 'Canada',
     currency: 'CAD',
-    symbol: '$',
+    symbol: 'C$',
     flag: 'CA',
     oneTimePrice: 3495,
     oneTimePriceDisplay: 'C$34.95',
     professionalPrice: 'C$350–C$600',
-    expertMonthly: 2995,
-    expertAnnual: 24900,
+    expertMonthly: 4495,
+    expertAnnual: 35900, // C$44.95/mo · C$359/yr
     warrantyName: 'Tarion / Provincial Warranty',
     energyCertName: 'EnerGuide Rating',
     electricalStandard: 'CSA C22.1 Electrical Code',
@@ -165,7 +165,7 @@ export const DOMAIN_MAP: Record<string, CountryCode> = {
   'snapsnag.ie': 'IE',
   'snapsnag.co.uk': 'UK',
   'snapsnag.com.au': 'AU',
-  'snapsnagapp.com': 'US',
+  'snapsnagapp.com': 'IE',
   'snapsnag.ca': 'CA',
 }
 

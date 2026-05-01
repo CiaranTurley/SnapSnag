@@ -211,7 +211,7 @@ export default function SampleReportPage() {
             <span style={{ fontSize: 24 }}>🛡️</span>
             <div>
               <h2 style={{ fontFamily: 'var(--font-fraunces)', fontSize: 15, fontWeight: 700, color: '#FFB340' }}>
-                HomeBond builder warranty
+                Builder warranty
               </h2>
               <span style={{
                 display: 'inline-block', background: 'rgba(255,179,64,0.15)', color: '#FFB340',

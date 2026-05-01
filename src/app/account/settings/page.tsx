@@ -247,7 +247,7 @@ export default function AccountSettingsPage() {
               {[
                 {
                   label: 'Warranty countdown emails',
-                  description: 'Remind me when my HomeBond / NHBC warranty is about to expire.',
+                  description: 'Remind me when my builder warranty period is about to expire.',
                   value: warrantyEmails,
                   set: setWarrantyEmails,
                 },

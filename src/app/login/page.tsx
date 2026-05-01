@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnTo = searchParams.get('returnTo') || '/dashboard'
   const supabase = createSupabaseBrowserClient()
 
   const [email, setEmail] = useState('')
@@ -29,10 +31,76 @@ export default function LoginPage() {
     }
 
     toast.success('Welcome back!')
-    router.push('/dashboard')
+    router.push(returnTo)
     router.refresh()
   }
 
+  return (
+    <div className="card">
+      <form onSubmit={handleLogin} className="space-y-5">
+        {/* Email */}
+        <div>
+          <label className="label">Email address</label>
+          <input
+            type="email"
+            className="input"
+            placeholder="you@example.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+        </div>
+
+        {/* Password */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="label mb-0">Password</label>
+            <Link href="/forgot-password" className="font-grotesk text-xs text-snap-teal hover:brightness-110">
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              className="input pr-12"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <span className="font-grotesk">Logging in…</span>
+          ) : (
+            <>
+              <LogIn size={16} />
+              <span className="font-grotesk">Log in</span>
+            </>
+          )}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+export default function LoginPage() {
   return (
     <main className="min-h-screen bg-snap-ink flex flex-col">
       {/* Nav */}
@@ -54,76 +122,18 @@ export default function LoginPage() {
             <p className="font-grotesk text-white/50 text-sm">Log in to your SnapSnag account</p>
           </div>
 
-          <div className="card">
-            <form onSubmit={handleLogin} className="space-y-5">
-              {/* Email */}
-              <div>
-                <label className="label">Email address</label>
-                <input
-                  type="email"
-                  className="input"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-              </div>
-
-              {/* Password */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="label mb-0">Password</label>
-                  <Link href="/forgot-password" className="font-grotesk text-xs text-snap-teal hover:brightness-110">
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    className="input pr-12"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <span className="font-grotesk">Logging in…</span>
-                ) : (
-                  <>
-                    <LogIn size={16} />
-                    <span className="font-grotesk">Log in</span>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-
-          <p className="text-center font-grotesk text-sm text-white/40 mt-6">
-            Don't have an account?{' '}
-            <Link href="/signup" className="text-snap-teal hover:brightness-110 font-semibold">
-              Sign up free
-            </Link>
-          </p>
+          <Suspense fallback={<div className="card"><div className="h-40" /></div>}>
+            <LoginForm />
+          </Suspense>
         </div>
       </div>
+
+      <p className="text-center font-grotesk text-sm text-white/40 mt-6 mb-8">
+        Don't have an account?{' '}
+        <Link href="/signup" className="text-snap-teal hover:brightness-110 font-semibold">
+          Sign up free
+        </Link>
+      </p>
     </main>
   )
 }

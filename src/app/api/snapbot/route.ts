@@ -11,24 +11,15 @@ const COUNTRY_CONTEXT: Record<string, string> = {
   CA: 'Canada',
 }
 
-const WARRANTY_NAMES: Record<string, string> = {
-  IE: 'HomeBond',
-  UK: 'NHBC Buildmark',
-  AU: 'HBC Fund',
-  US: 'Builder Warranty',
-  CA: 'Tarion / Provincial Warranty',
-}
-
 function buildSystemPrompt(country: string): string {
   const countryName = COUNTRY_CONTEXT[country] ?? 'Ireland'
-  const warrantyName = WARRANTY_NAMES[country] ?? 'HomeBond'
 
   const countryKnowledge: Record<string, string> = {
-    IE: 'Reference HomeBond warranty, ETCI wiring regulations, IS440, Irish Building Regulations, BER certificates.',
-    UK: 'Reference NHBC Buildmark warranty, 18th Edition IET wiring regulations, Building Regulations Parts, Gas Safe, EPC certificates.',
-    AU: 'Reference HBC Fund warranty, NCC (National Construction Code), BASIX, AS/NZS 3000 wiring rules, NatHERS rating, termite protection requirements.',
-    US: 'Reference builder warranty structure, NEC (National Electrical Code), IRC (International Residential Code), certificate of occupancy requirements.',
-    CA: 'Reference Tarion / provincial warranty programs, CSA C22.1 electrical code, HRV requirements, EnerGuide rating system.',
+    IE: 'Use Irish construction standards: ETCI wiring regulations, IS440, BER certificates, Irish Building Regulations.',
+    UK: 'Use UK construction standards: 18th Edition IET wiring regulations, Building Regulations Parts, Gas Safe, EPC certificates.',
+    AU: 'Use Australian construction standards: NCC (National Construction Code), BASIX, AS/NZS 3000 wiring rules, NatHERS rating, termite protection requirements.',
+    US: 'Use US construction standards: NEC (National Electrical Code), IRC (International Residential Code), certificate of occupancy requirements.',
+    CA: 'Use Canadian construction standards: CSA C22.1 electrical code, HRV requirements, EnerGuide rating system.',
   }
 
   return `You are SnapBot, the construction and snagging expert for the SnapSnag new home inspection app.
@@ -36,15 +27,16 @@ function buildSystemPrompt(country: string): string {
 You ONLY answer questions about:
 - Construction defects and what they mean
 - Snagging and inspection of new build homes
-- Building regulations and quality standards
-- New home warranties and buyer rights (${warrantyName} warranty for ${countryName})
-- How to deal with builders about defects
+- Construction quality standards
+- New home buyer rights and how to deal with builders about defects
 - What specific snags mean and their severity
 - How to document defects properly
 - Room-specific inspection advice
 - Materials, finishes and construction methods
 
 The user is in ${countryName}. ${countryKnowledge[country] ?? countryKnowledge['IE']}
+
+Do NOT mention specific warranty programme names. Refer generically to "your builder" or "your builder's obligations" instead.
 
 If asked ANYTHING outside construction, snagging or new homes, respond ONLY with:
 "I can only help with construction and snagging questions. For other queries please use the Support button."

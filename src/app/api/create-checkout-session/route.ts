@@ -25,12 +25,12 @@ export async function POST(req: NextRequest) {
 
     const { data: inspection, error } = await admin
       .from('inspections')
-      .select('id, address, country, paid_at, verification_code')
+      .select('id, property_address_line1, country, paid_at, verification_code, user_id')
       .eq('id', inspectionId)
-      .eq('user_id', user.id)
       .single()
 
     if (error || !inspection) return NextResponse.json({ error: 'Inspection not found' }, { status: 404 })
+    if (inspection.user_id !== user.id) return NextResponse.json({ error: 'Inspection not found' }, { status: 404 })
 
     // Already paid — redirect to report
     if (inspection.paid_at) {
@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
           product_data: {
             name: 'SnapSnag Inspection Report',
             description: creditApplied > 0
-              ? `${cfg.currency}${(creditApplied / 100).toFixed(2)} credit applied · ${inspection.address ?? 'your property'}`
-              : `Professional snagging report for ${inspection.address ?? 'your property'}`,
+              ? `${cfg.currency}${(creditApplied / 100).toFixed(2)} credit applied · ${inspection.property_address_line1 ?? 'your property'}`
+              : `Professional snagging report for ${inspection.property_address_line1 ?? 'your property'}`,
           },
         },
         quantity: 1,

@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import SnapSnagLogo from '@/components/SnapSnagLogo'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
+import { Download, FileText, FileSpreadsheet, Copy, Check, Share2, Shield, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,121 +50,16 @@ interface FailedItem {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function PaymentGate({ inspectionId }: { inspectionId: string }) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handlePay() {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inspectionId }),
-      })
-      const data = await res.json()
-      if (!res.ok || !data.url) throw new Error(data.error ?? 'Something went wrong')
-      router.push(data.url)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="card border border-snap-teal/40 bg-snap-teal/5 mb-4 text-center">
-      <div className="text-3xl mb-3">🔒</div>
-      <h2 className="font-fraunces text-lg font-bold text-white mb-2">Unlock your report</h2>
-      <p className="font-grotesk text-white/50 text-sm leading-relaxed mb-4">
-        One-time payment to download your full PDF, Word, and Excel reports.
-      </p>
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-grotesk rounded-lg px-4 py-3 mb-4">
-          {error}
-        </div>
-      )}
-      <button
-        onClick={handlePay}
-        disabled={loading}
-        className="btn-primary w-full min-h-[52px] flex items-center justify-center font-bold disabled:opacity-60 disabled:cursor-not-allowed"
-        style={{ fontWeight: 700, boxShadow: loading ? 'none' : '0 0 24px rgba(0,201,167,0.25)' }}
-      >
-        {loading ? (
-          <span className="flex items-center gap-2">
-            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-            Taking you to payment…
-          </span>
-        ) : (
-          'Pay to unlock →'
-        )}
-      </button>
-      <p className="font-grotesk text-xs text-white/30 mt-3 text-center">
-        Questions?{' '}
-        <a href="mailto:hello@snapsnagapp.com" className="text-white/50 hover:text-snap-teal transition-colors underline">
-          Contact us
-        </a>
-      </p>
-    </div>
-  )
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-function WarrantyCountdown({ expiresAt }: { expiresAt: string }) {
-  const now   = new Date()
-  const expiry = new Date(expiresAt)
-  const days  = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (days < 0) return null // Already expired — don't show
-
-  const color = days > 90 ? '#00D68F' : days > 30 ? '#FFB340' : '#FF4D4F'
-  const label = days > 90 ? 'Good' : days > 30 ? 'Expiring soon' : 'Urgent'
-
+function Spinner() {
   return (
-    <div className="card border mb-4" style={{ borderColor: `${color}40` }}>
-      <div className="flex items-center gap-3 mb-2">
-        <span style={{ fontSize: 24 }}>🛡️</span>
-        <div>
-          <h2 className="font-fraunces text-base font-bold" style={{ color }}>
-            Builder warranty
-          </h2>
-          <span className="font-grotesk text-xs px-2 py-0.5 rounded-full font-semibold"
-            style={{ background: `${color}20`, color }}>
-            {label}
-          </span>
-        </div>
-      </div>
-      <p className="font-grotesk text-white/50 text-sm mb-3">
-        Your builder warranty expires in{' '}
-        <strong style={{ color }}>{days} day{days !== 1 ? 's' : ''}</strong>
-        {' '}— on {expiry.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}.
-      </p>
-      {days <= 30 && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
-          <p className="font-grotesk text-red-300 text-xs leading-relaxed">
-            ⚠️ Contact your builder immediately with any remaining defects. Once the warranty expires,
-            getting repairs covered at no cost becomes significantly harder.
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function StatCard({ label, value, color }: { label: string; value: string | number; color?: string }) {
-  return (
-    <div className="bg-white/5 rounded-xl p-4 text-center flex-1 min-w-[90px]">
-      <div
-        className="text-2xl font-bold font-fraunces mb-1"
-        style={{ color: color ?? '#fff' }}
-      >
-        {value}
-      </div>
-      <div className="text-white/40 text-xs font-grotesk">{label}</div>
-    </div>
+    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
   )
 }
 
@@ -185,18 +81,19 @@ export default function ReportPage() {
   const [generatingExcel, setGeneratingExcel] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [downloaded, setDownloaded] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [isExpert,      setIsExpert]      = useState(false)
+  const [codeCopied, setCodeCopied] = useState(false)
+  const [isExpert, setIsExpert] = useState(false)
   const [respondingTo, setRespondingTo] = useState<string | null>(null)
   const [buyerFeedback, setBuyerFeedback] = useState('')
   const [respondingLoading, setRespondingLoading] = useState(false)
+  const [builderExpanded, setBuilderExpanded] = useState(false)
+  const [payLoading, setPayLoading] = useState(false)
+  const [payError, setPayError] = useState<string | null>(null)
 
-  // ── Verify Stripe session if redirected from checkout ────────────────────────
-  // Handles the race condition where the user arrives before the webhook fires.
+  // ── Stripe session verify ────────────────────────────────────────────────────
   useEffect(() => {
     const sessionId = searchParams.get('session_id')
     if (!sessionId || !inspectionId) return
-
     fetch('/api/verify-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -204,10 +101,7 @@ export default function ReportPage() {
     })
       .then(r => r.json())
       .then(data => {
-        if (data.paid) {
-          // Re-fetch the inspection so paid_at is reflected
-          setInspection(prev => prev ? { ...prev, paid_at: prev.paid_at ?? new Date().toISOString() } : prev)
-        }
+        if (data.paid) setInspection(prev => prev ? { ...prev, paid_at: prev.paid_at ?? new Date().toISOString() } : prev)
       })
       .catch(() => {})
   }, [searchParams, inspectionId]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -224,18 +118,8 @@ export default function ReportPage() {
     async function load() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const supabase = createSupabaseBrowserClient() as any
-
-      const { data: insp } = await supabase
-        .from('inspections')
-        .select('*')
-        .eq('id', inspectionId)
-        .single()
-
-      if (!insp) {
-        router.push('/dashboard')
-        return
-      }
-
+      const { data: insp } = await supabase.from('inspections').select('*').eq('id', inspectionId).single()
+      if (!insp) { router.push('/dashboard'); return }
       setInspection(insp)
 
       const { data: checklistItems } = await supabase
@@ -249,532 +133,444 @@ export default function ReportPage() {
         allItems
           .filter((i: { status: string | null }) => i.status === 'fail')
           .map((i: { id: string; room: string; item_description: string; severity: string | null }) => ({
-            id: i.id,
-            room: i.room,
-            item_description: i.item_description,
-            severity: i.severity,
+            id: i.id, room: i.room, item_description: i.item_description, severity: i.severity,
           }))
       )
 
-      // Load builder portal responses
-      const { data: bItems } = await supabase
-        .from('builder_portal_items')
-        .select('*')
-        .eq('inspection_id', inspectionId)
-
+      const { data: bItems } = await supabase.from('builder_portal_items').select('*').eq('inspection_id', inspectionId)
       setBuilderPortalItems(bItems ?? [])
       setLoading(false)
     }
-
     load()
   }, [inspectionId, router])
 
-  // ── Generate PDF ─────────────────────────────────────────────────────────────
+  // ── Downloads ────────────────────────────────────────────────────────────────
   const handleDownload = useCallback(async () => {
     if (generating) return
-    setGenerating(true)
-    setError(null)
-
+    setGenerating(true); setError(null)
     try {
       const res = await fetch('/api/generate-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inspectionId }),
       })
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? 'PDF generation failed')
-      }
-
+      if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error ?? 'PDF generation failed') }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = `SnapSnag-Report-${inspection?.verification_code ?? inspectionId.slice(0, 8)}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
-      setDownloaded(true)
+      a.href = url; a.download = `SnapSnag-Report-${inspection?.verification_code ?? inspectionId.slice(0, 8)}.pdf`; a.click()
+      URL.revokeObjectURL(url); setDownloaded(true)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong'
-      setError(msg)
-    } finally {
-      setGenerating(false)
-    }
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally { setGenerating(false) }
   }, [generating, inspectionId, inspection])
 
-  // ── Generate Word ─────────────────────────────────────────────────────────────
   const handleDownloadWord = useCallback(async () => {
     if (generatingWord) return
-    setGeneratingWord(true)
-    setError(null)
+    setGeneratingWord(true); setError(null)
     try {
       const res = await fetch('/api/generate-word', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inspectionId }),
       })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? 'Word generation failed')
-      }
+      if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error ?? 'Word generation failed') }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = `SnapSnag-Report-${inspection?.verification_code ?? inspectionId.slice(0, 8)}.docx`
-      a.click()
+      a.href = url; a.download = `SnapSnag-Report-${inspection?.verification_code ?? inspectionId.slice(0, 8)}.docx`; a.click()
       URL.revokeObjectURL(url)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setGeneratingWord(false)
-    }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Something went wrong') }
+    finally { setGeneratingWord(false) }
   }, [generatingWord, inspectionId, inspection])
 
-  // ── Generate Excel ────────────────────────────────────────────────────────────
   const handleDownloadExcel = useCallback(async () => {
     if (generatingExcel) return
-    setGeneratingExcel(true)
-    setError(null)
+    setGeneratingExcel(true); setError(null)
     try {
       const res = await fetch('/api/generate-excel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inspectionId }),
       })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? 'Excel generation failed')
-      }
+      if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error ?? 'Excel generation failed') }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = `SnapSnag-Report-${inspection?.verification_code ?? inspectionId.slice(0, 8)}.xlsx`
-      a.click()
+      a.href = url; a.download = `SnapSnag-Report-${inspection?.verification_code ?? inspectionId.slice(0, 8)}.xlsx`; a.click()
       URL.revokeObjectURL(url)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setGeneratingExcel(false)
-    }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Something went wrong') }
+    finally { setGeneratingExcel(false) }
   }, [generatingExcel, inspectionId, inspection])
 
-  // ── Buyer response (accept / reject builder fix) ─────────────────────────────
+  // ── Pay ──────────────────────────────────────────────────────────────────────
+  async function handlePay() {
+    setPayLoading(true); setPayError(null)
+    try {
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inspectionId }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error ?? 'Something went wrong')
+      router.push(data.url)
+    } catch (err: unknown) {
+      setPayError(err instanceof Error ? err.message : 'Something went wrong')
+      setPayLoading(false)
+    }
+  }
+
+  // ── Buyer response ───────────────────────────────────────────────────────────
   async function handleBuyerResponse(checklistItemId: string, accepted: boolean, feedback?: string) {
     setRespondingLoading(true)
     try {
       const res = await fetch('/api/buyer-response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ checklistItemId, accepted, feedback: feedback ?? null }),
       })
-      if (!res.ok) throw new Error('Failed to submit response')
-      // Refresh builder portal items
+      if (!res.ok) throw new Error('Failed')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const supabase = createSupabaseBrowserClient() as any
-      const { data: bItems } = await supabase
-        .from('builder_portal_items')
-        .select('*')
-        .eq('inspection_id', inspectionId)
+      const { data: bItems } = await supabase.from('builder_portal_items').select('*').eq('inspection_id', inspectionId)
       setBuilderPortalItems(bItems ?? [])
-      setRespondingTo(null)
-      setBuyerFeedback('')
-    } catch {
-      // non-fatal
-    } finally {
-      setRespondingLoading(false)
-    }
+      setRespondingTo(null); setBuyerFeedback('')
+    } catch { /* non-fatal */ }
+    finally { setRespondingLoading(false) }
   }
 
-  // ── Share / copy ─────────────────────────────────────────────────────────────
-  const handleCopyCode = () => {
-    if (inspection?.verification_code) {
-      navigator.clipboard.writeText(inspection.verification_code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
+  // ── Copy code ────────────────────────────────────────────────────────────────
+  function handleCopyCode() {
+    if (!inspection?.verification_code) return
+    navigator.clipboard.writeText(inspection.verification_code)
+    setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000)
   }
 
   // ── Stats ─────────────────────────────────────────────────────────────────────
   const answered = items.filter(i => i.status !== null)
   const passed = items.filter(i => i.status === 'pass')
   const failed = items.filter(i => i.status === 'fail')
-  const na = items.filter(i => i.status === 'na')
-  const passRate =
-    answered.length > 0 ? Math.round((passed.length / answered.length) * 100) : 0
+  const passRate = answered.length > 0 ? Math.round((passed.length / answered.length) * 100) : 0
+
+  const isPaid = !!(inspection?.paid_at || isExpert)
+
+  const builderFixed = builderPortalItems.filter(b => b.status === 'fixed').length
+  const builderPending = builderPortalItems.filter(b => b.status !== 'fixed').length
+  const awaitingResponse = builderPortalItems.filter(b => b.status === 'fixed' && b.buyer_accepted === null).length
 
   // ── Loading ───────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-snap-ink flex items-center justify-center">
-        <div className="text-white/40 font-grotesk text-sm">Loading your report…</div>
-      </div>
+      <main className="min-h-screen bg-snap-ink flex items-center justify-center">
+        <Loader2 size={24} className="text-snap-teal animate-spin" />
+      </main>
     )
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-snap-ink px-6 py-10">
-      <div className="w-full max-w-lg mx-auto">
+    <main className="min-h-screen bg-snap-ink pb-24">
 
-        {/* Logo */}
-        <div className="mb-8 flex justify-center">
-          <SnapSnagLogo size="md" showTagline />
+      {/* Nav */}
+      <nav className="border-b border-white/05 px-5 py-4 sticky top-0 z-10" style={{ background: '#0A0F1A' }}>
+        <div className="max-w-lg mx-auto flex items-center justify-between">
+          <SnapSnagLogo size="sm" />
+          <Link href="/dashboard" className="font-grotesk text-xs text-white/35 hover:text-white transition-colors">
+            ← Dashboard
+          </Link>
         </div>
+      </nav>
+
+      <div className="max-w-lg mx-auto px-5 pt-6 space-y-4">
 
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-3">📋</div>
-          <h1 className="font-fraunces text-2xl font-bold text-white mb-2">
-            Your inspection report
+        <div>
+          <h1 className="font-fraunces text-2xl font-bold">
+            {inspection?.address ?? 'Inspection Report'}
           </h1>
-          <p className="font-grotesk text-white/50 text-sm">
-            {inspection?.address ?? 'Your property'}
+          <p className="font-grotesk text-xs text-white/35 mt-1">
+            {inspection?.completed_at ? formatDate(inspection.completed_at) : formatDate(inspection?.created_at ?? '')}
+            {inspection?.property_type ? ` · ${inspection.property_type}` : ''}
+            {inspection?.bedrooms ? ` · ${inspection.bedrooms} bed` : ''}
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <StatCard label="Pass rate" value={`${passRate}%`} color="#00C9A7" />
-          <StatCard label="Passed" value={passed.length} color="#22C55E" />
-          <StatCard label="Failed" value={failed.length} color={failed.length > 0 ? '#EF4444' : '#fff'} />
-          <StatCard label="N/A" value={na.length} />
-          <StatCard label="Checked" value={answered.length} />
+        {/* Stats row */}
+        <div className="rounded-2xl border border-white/07 overflow-hidden" style={{ background: '#1C2840' }}>
+          <div className="flex">
+            <div className="flex-1 text-center py-5 border-r border-white/07">
+              <p className="font-fraunces text-4xl font-bold" style={{ color: passRate >= 80 ? '#00D68F' : passRate >= 60 ? '#F59E0B' : '#EF4444' }}>
+                {passRate}%
+              </p>
+              <p className="font-grotesk text-[10px] text-white/35 mt-1">Pass rate</p>
+            </div>
+            <div className="flex-1 text-center py-5 border-r border-white/07">
+              <p className="font-fraunces text-2xl font-bold text-snap-pass">{passed.length}</p>
+              <p className="font-grotesk text-[10px] text-white/35 mt-1">Passed</p>
+            </div>
+            <div className="flex-1 text-center py-5 border-r border-white/07">
+              <p className="font-fraunces text-2xl font-bold text-snap-fail">{failed.length}</p>
+              <p className="font-grotesk text-[10px] text-white/35 mt-1">Failed</p>
+            </div>
+            <div className="flex-1 text-center py-5">
+              <p className="font-fraunces text-2xl font-bold text-white">{answered.length}</p>
+              <p className="font-grotesk text-[10px] text-white/35 mt-1">Checked</p>
+            </div>
+          </div>
         </div>
 
-        {/* Builder responses banner */}
-        {builderPortalItems.length > 0 && (() => {
-          const fixedCount = builderPortalItems.filter(b => b.status === 'fixed').length
-          const inProgressCount = builderPortalItems.filter(b => b.status === 'in_progress').length
+        {/* Warranty countdown */}
+        {inspection?.warranty_expires_at && (() => {
+          const days = Math.ceil((new Date(inspection.warranty_expires_at).getTime() - Date.now()) / 86400000)
+          if (days < 0) return null
+          const color = days > 90 ? '#00D68F' : days > 30 ? '#F59E0B' : '#EF4444'
           return (
-            <div className="card border border-snap-teal/40 bg-snap-teal/5 mb-6">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl">🏗️</span>
-                <div>
-                  <h2 className="font-fraunces text-base font-bold text-white">Builder has responded</h2>
-                  <p className="font-grotesk text-white/50 text-xs">
-                    {fixedCount} fixed · {inProgressCount} in progress · {builderPortalItems.length} total updates
+            <div className="rounded-2xl p-4 border" style={{ background: `${color}0D`, borderColor: `${color}30` }}>
+              <div className="flex items-center gap-2 mb-1">
+                <Shield size={14} style={{ color }} />
+                <span className="font-grotesk text-xs font-semibold" style={{ color }}>
+                  Builder warranty — {days} day{days !== 1 ? 's' : ''} left
+                </span>
+              </div>
+              <p className="font-grotesk text-xs text-white/50">
+                Expires {new Date(inspection.warranty_expires_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}.
+                {days <= 30 && ' Contact your builder immediately with any remaining defects.'}
+              </p>
+            </div>
+          )
+        })()}
+
+        {/* Builder responses */}
+        {builderPortalItems.length > 0 && (
+          <div className="rounded-2xl border border-white/07 overflow-hidden" style={{ background: '#1C2840' }}>
+            <button
+              onClick={() => setBuilderExpanded(p => !p)}
+              className="w-full px-4 py-4 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm"
+                  style={{ background: 'rgba(0,201,167,0.12)' }}>
+                  🏗️
+                </div>
+                <div className="text-left">
+                  <p className="font-grotesk text-sm font-semibold text-white">Builder has responded</p>
+                  <p className="font-grotesk text-[10px] text-white/35 mt-0.5">
+                    {builderFixed} fixed · {builderPending} pending
+                    {awaitingResponse > 0 && ` · ${awaitingResponse} awaiting your review`}
                   </p>
                 </div>
               </div>
+              {builderExpanded ? <ChevronUp size={16} className="text-white/30" /> : <ChevronDown size={16} className="text-white/30" />}
+            </button>
 
-              <div className="space-y-3">
-                {builderPortalItems.map(bItem => {
+            {builderExpanded && (
+              <div className="border-t border-white/06">
+                {builderPortalItems.map((bItem, idx) => {
                   const failedItem = failedItems.find(f => f.id === bItem.checklist_item_id)
                   if (!failedItem) return null
                   const needsResponse = bItem.status === 'fixed' && bItem.buyer_accepted === null
 
                   return (
-                    <div
-                      key={bItem.id}
-                      className={`rounded-xl p-4 border ${
-                        bItem.status === 'fixed' && bItem.buyer_accepted === true
-                          ? 'border-green-500/30 bg-green-500/5'
-                          : bItem.status === 'fixed'
-                          ? 'border-snap-teal/30 bg-white/5'
-                          : bItem.status === 'in_progress'
-                          ? 'border-amber-500/30 bg-amber-500/5'
-                          : 'border-white/10 bg-white/5'
-                      }`}
-                    >
-                      {/* Item description */}
-                      <p className="font-grotesk text-white text-xs font-bold mb-1 leading-snug">
-                        {failedItem.item_description}
-                      </p>
-                      <p className="font-grotesk text-white/40 text-xs mb-3">{failedItem.room}</p>
+                    <div key={bItem.id}>
+                      {idx > 0 && <div className="border-t border-white/04 mx-4" />}
+                      <div className="px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-grotesk text-xs font-semibold text-white leading-snug">{failedItem.item_description}</p>
+                            <p className="font-grotesk text-[10px] text-white/35 mt-0.5">{failedItem.room}</p>
+                          </div>
+                          <span className="flex-shrink-0 font-grotesk text-[10px] font-bold px-2.5 py-1 rounded-full"
+                            style={{
+                              background: bItem.status === 'fixed' && bItem.buyer_accepted === true ? 'rgba(34,197,94,0.15)' :
+                                          bItem.status === 'fixed' ? 'rgba(0,201,167,0.12)' :
+                                          bItem.status === 'in_progress' ? 'rgba(245,158,11,0.15)' :
+                                          'rgba(255,255,255,0.07)',
+                              color: bItem.status === 'fixed' && bItem.buyer_accepted === true ? '#22C55E' :
+                                     bItem.status === 'fixed' ? '#00C9A7' :
+                                     bItem.status === 'in_progress' ? '#F59E0B' :
+                                     'rgba(255,255,255,0.4)',
+                            }}>
+                            {bItem.status === 'fixed' && bItem.buyer_accepted === true ? 'Accepted ✓' :
+                             bItem.status === 'fixed' ? 'Fixed — review?' :
+                             bItem.status === 'in_progress' ? 'In Progress' :
+                             bItem.status === 'disputed' ? 'Disputed' : 'Outstanding'}
+                          </span>
+                        </div>
 
-                      {/* Status */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold font-grotesk ${
-                          bItem.status === 'fixed' ? 'bg-green-500/20 text-green-300' :
-                          bItem.status === 'in_progress' ? 'bg-amber-500/20 text-amber-300' :
-                          bItem.status === 'disputed' ? 'bg-white/10 text-white/40' :
-                          'bg-white/10 text-white/60'
-                        }`}>
-                          {bItem.status === 'fixed' ? '✓ Builder says: Fixed' :
-                           bItem.status === 'in_progress' ? '⟳ In Progress' :
-                           bItem.status === 'disputed' ? '✗ Disputed' : 'Outstanding'}
-                        </span>
-                        {bItem.buyer_accepted === true && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-300 font-grotesk">
-                            ✓ You accepted
-                          </span>
+                        {bItem.builder_note && (
+                          <p className="font-grotesk text-xs text-white/45 mt-2 leading-relaxed">{bItem.builder_note}</p>
                         )}
-                        {bItem.buyer_accepted === false && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-300 font-grotesk">
-                            ✗ Needs more work
-                          </span>
+
+                        {needsResponse && (
+                          respondingTo === bItem.checklist_item_id ? (
+                            <div className="mt-3 space-y-2">
+                              <textarea
+                                value={buyerFeedback}
+                                onChange={e => setBuyerFeedback(e.target.value)}
+                                placeholder="What still needs attention? (optional)"
+                                rows={2}
+                                className="w-full rounded-lg px-3 py-2 text-white text-xs font-grotesk placeholder:text-white/20 focus:outline-none focus:border-snap-teal resize-none border border-white/10"
+                                style={{ background: 'rgba(255,255,255,0.05)' }}
+                              />
+                              <div className="flex gap-2">
+                                <button onClick={() => handleBuyerResponse(bItem.checklist_item_id, true)} disabled={respondingLoading}
+                                  className="flex-1 min-h-[34px] rounded-lg font-grotesk text-xs font-bold disabled:opacity-50"
+                                  style={{ background: 'rgba(34,197,94,0.2)', color: '#22C55E' }}>
+                                  {respondingLoading ? 'Saving…' : 'Accept fix ✓'}
+                                </button>
+                                <button onClick={() => handleBuyerResponse(bItem.checklist_item_id, false, buyerFeedback)} disabled={respondingLoading}
+                                  className="flex-1 min-h-[34px] rounded-lg font-grotesk text-xs font-bold disabled:opacity-50"
+                                  style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444' }}>
+                                  Needs more work
+                                </button>
+                                <button onClick={() => { setRespondingTo(null); setBuyerFeedback('') }}
+                                  className="px-3 min-h-[34px] rounded-lg font-grotesk text-xs text-white/40 border border-white/10">
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => setRespondingTo(bItem.checklist_item_id)}
+                              className="mt-2 font-grotesk text-xs font-semibold px-3 py-1.5 rounded-lg"
+                              style={{ background: 'rgba(0,201,167,0.12)', color: '#00C9A7' }}>
+                              Review fix →
+                            </button>
+                          )
                         )}
                       </div>
-
-                      {/* Builder note */}
-                      {bItem.builder_note && (
-                        <div className="bg-white/5 rounded-lg px-3 py-2 mb-3">
-                          <p className="font-grotesk text-xs text-white/40 mb-1">Builder note:</p>
-                          <p className="font-grotesk text-sm text-white/70">{bItem.builder_note}</p>
-                        </div>
-                      )}
-
-                      {/* Dispute reason */}
-                      {bItem.dispute_reason && (
-                        <div className="bg-white/5 rounded-lg px-3 py-2 mb-3">
-                          <p className="font-grotesk text-xs text-white/40 mb-1">Dispute reason:</p>
-                          <p className="font-grotesk text-sm text-white/70">{bItem.dispute_reason}</p>
-                        </div>
-                      )}
-
-                      {/* Builder fix photo */}
-                      {bItem.builder_photo_url && (
-                        <div className="mb-3">
-                          <p className="font-grotesk text-xs text-white/40 mb-1">Photo of fix:</p>
-                          <img
-                            src={bItem.builder_photo_url}
-                            alt="Builder fix"
-                            className="w-28 h-28 object-cover rounded-lg border border-white/10"
-                          />
-                        </div>
-                      )}
-
-                      {/* Buyer response buttons — only for fixed items not yet responded to */}
-                      {needsResponse && (
-                        respondingTo === bItem.checklist_item_id ? (
-                          <div className="space-y-2 mt-2">
-                            <textarea
-                              value={buyerFeedback}
-                              onChange={e => setBuyerFeedback(e.target.value)}
-                              placeholder="What still needs attention? (optional)"
-                              rows={2}
-                              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-grotesk placeholder:text-white/20 focus:outline-none focus:border-snap-teal resize-none"
-                            />
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleBuyerResponse(bItem.checklist_item_id, false, buyerFeedback)}
-                                disabled={respondingLoading}
-                                className="flex-1 min-h-[36px] rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-grotesk text-xs font-bold transition-colors disabled:opacity-50"
-                              >
-                                {respondingLoading ? 'Saving…' : 'Confirm — needs more work'}
-                              </button>
-                              <button
-                                onClick={() => { setRespondingTo(null); setBuyerFeedback('') }}
-                                className="px-4 min-h-[36px] rounded-lg border border-white/20 text-white/50 font-grotesk text-xs font-bold hover:bg-white/5"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              onClick={() => handleBuyerResponse(bItem.checklist_item_id, true)}
-                              disabled={respondingLoading}
-                              className="flex-1 min-h-[36px] rounded-lg bg-green-600 hover:bg-green-500 text-white font-grotesk text-xs font-bold transition-colors disabled:opacity-50"
-                            >
-                              ✓ Accept fix
-                            </button>
-                            <button
-                              onClick={() => setRespondingTo(bItem.checklist_item_id)}
-                              className="flex-1 min-h-[36px] rounded-lg bg-white/10 hover:bg-white/15 text-white/70 font-grotesk text-xs font-bold transition-colors"
-                            >
-                              ✗ Needs more work
-                            </button>
-                          </div>
-                        )
-                      )}
                     </div>
                   )
                 })}
               </div>
-            </div>
-          )
-        })()}
+            )}
+          </div>
+        )}
 
         {/* Payment gate */}
-        {!inspection?.paid_at && !isExpert && (
-          <PaymentGate inspectionId={inspectionId} />
-        )}
-
-        {/* Downloads — only shown after payment or for experts */}
-        {(inspection?.paid_at || isExpert) && (<>
-
-        {/* Warranty countdown */}
-        {inspection?.warranty_expires_at && (
-          <WarrantyCountdown expiresAt={inspection.warranty_expires_at} />
-        )}
-
-        {/* Download card */}
-        <div className="card border border-white/10 mb-4">
-          <h2 className="font-fraunces text-lg font-bold text-white mb-1">
-            Professional PDF report
-          </h2>
-          <p className="font-grotesk text-white/50 text-sm mb-5 leading-relaxed">
-            Your full snagging report with every room, all findings, photos, severity ratings and
-            a verification code your builder can check online.
-          </p>
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-grotesk rounded-lg px-4 py-3 mb-4">
-              {error} — please try again.
-            </div>
-          )}
-
-          <button
-            onClick={handleDownload}
-            disabled={generating}
-            className="btn-primary w-full min-h-[52px] flex items-center justify-center font-bold mb-3 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ fontWeight: 700, boxShadow: generating ? 'none' : '0 0 24px rgba(0,201,167,0.25)' }}
-          >
-            {generating ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                Generating your PDF…
-              </span>
-            ) : downloaded ? (
-              '✓ Download again'
-            ) : (
-              'Download PDF report →'
-            )}
-          </button>
-
-          {downloaded && (
-            <p className="font-grotesk text-center text-white/40 text-xs">
-              Check your Downloads folder if it didn't open automatically.
+        {!isPaid && (
+          <div className="rounded-2xl border p-5" style={{ background: 'rgba(0,201,167,0.06)', borderColor: 'rgba(0,201,167,0.3)' }}>
+            <div className="text-3xl mb-3 text-center">🔒</div>
+            <h2 className="font-fraunces text-lg font-bold text-white text-center mb-1">Unlock your report</h2>
+            <p className="font-grotesk text-white/50 text-sm text-center leading-relaxed mb-4">
+              One-time payment — download PDF, Word, and Excel instantly.
             </p>
-          )}
-        </div>
-
-        {/* Word + Excel downloads */}
-        <div className="card border border-white/10 mb-4">
-          <h2 className="font-fraunces text-base font-bold text-white mb-1">
-            Also available in
-          </h2>
-          <p className="font-grotesk text-white/50 text-xs mb-4 leading-relaxed">
-            The Word report is great for sending to your builder. The Excel spreadsheet includes a ready-made snagging tracker with columns for the builder to fill in repair dates.
-          </p>
-          <div className="flex gap-3 flex-col sm:flex-row">
-            <button
-              onClick={handleDownloadWord}
-              disabled={generatingWord}
-              className="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 transition-colors font-grotesk text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generatingWord ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Generating…
-                </>
-              ) : (
-                <>
-                  <span className="text-blue-400">📄</span> Download Word (.docx)
-                </>
-              )}
+            {payError && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-grotesk rounded-xl px-4 py-3 mb-4">
+                {payError}
+              </div>
+            )}
+            <button onClick={handlePay} disabled={payLoading}
+              className="btn-primary w-full min-h-[52px] flex items-center justify-center gap-2 font-bold disabled:opacity-60"
+              style={{ fontWeight: 700, boxShadow: payLoading ? 'none' : '0 0 24px rgba(0,201,167,0.25)' }}>
+              {payLoading ? <><Spinner /> Taking you to payment…</> : 'Pay to unlock →'}
             </button>
-            <button
-              onClick={handleDownloadExcel}
-              disabled={generatingExcel}
-              className="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 transition-colors font-grotesk text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generatingExcel ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Generating…
-                </>
-              ) : (
-                <>
-                  <span className="text-green-400">📊</span> Download Excel (.xlsx)
-                </>
-              )}
-            </button>
+            <p className="font-grotesk text-[11px] text-white/25 text-center mt-3">
+              Secure payment via Stripe · Instant access
+            </p>
           </div>
-        </div>
+        )}
 
-        {/* Verification code */}
-        {inspection?.verification_code && (
-          <div className="card border border-white/10 mb-4">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-fraunces text-base font-bold text-white">Verification code</h2>
-              <button
-                onClick={handleCopyCode}
-                className="font-grotesk text-xs text-snap-teal hover:text-white transition-colors"
-              >
-                {copied ? '✓ Copied' : 'Copy'}
+        {/* Downloads */}
+        {isPaid && (
+          <>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-grotesk rounded-xl px-4 py-3">
+                {error} — please try again.
+              </div>
+            )}
+
+            {/* PDF — primary */}
+            <div className="rounded-2xl border border-white/07 p-5" style={{ background: '#1C2840' }}>
+              <div className="flex items-center gap-2 mb-1">
+                <FileText size={15} className="text-snap-teal" />
+                <span className="font-grotesk text-xs font-semibold text-snap-teal">Professional PDF</span>
+              </div>
+              <p className="font-grotesk text-xs text-white/40 mb-4 leading-relaxed">
+                Full room-by-room report with photos, severity ratings, and your verification code.
+              </p>
+              <button onClick={handleDownload} disabled={generating}
+                className="btn-primary w-full min-h-[52px] flex items-center justify-center gap-2 font-bold disabled:opacity-60"
+                style={{ fontWeight: 700, boxShadow: generating ? 'none' : '0 0 24px rgba(0,201,167,0.25)' }}>
+                {generating ? <><Spinner /> Generating PDF…</> : downloaded ? <><Check size={16} /> Download again</> : <><Download size={16} /> Download PDF</>}
+              </button>
+              {downloaded && (
+                <p className="font-grotesk text-[11px] text-white/25 text-center mt-2">
+                  Check your Downloads folder if it didn't open.
+                </p>
+              )}
+            </div>
+
+            {/* Word + Excel — secondary */}
+            <div className="flex gap-3">
+              <button onClick={handleDownloadWord} disabled={generatingWord}
+                className="flex-1 flex items-center justify-center gap-2 min-h-[46px] rounded-xl font-grotesk text-sm font-semibold transition-colors disabled:opacity-50"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                {generatingWord ? <Spinner /> : <FileText size={14} className="text-blue-400" />}
+                {generatingWord ? 'Generating…' : 'Word (.docx)'}
+              </button>
+              <button onClick={handleDownloadExcel} disabled={generatingExcel}
+                className="flex-1 flex items-center justify-center gap-2 min-h-[46px] rounded-xl font-grotesk text-sm font-semibold transition-colors disabled:opacity-50"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                {generatingExcel ? <Spinner /> : <FileSpreadsheet size={14} className="text-green-400" />}
+                {generatingExcel ? 'Generating…' : 'Excel (.xlsx)'}
               </button>
             </div>
-            <p className="font-grotesk text-white/50 text-xs mb-3">
-              Anyone can verify your inspection took place at snapsnag.ie/verify
-            </p>
-            <div className="bg-white/5 rounded-lg px-4 py-3 text-center">
-              <span className="font-fraunces text-2xl font-bold tracking-widest text-snap-teal">
-                {inspection.verification_code}
-              </span>
-            </div>
-          </div>
+
+            {/* Verification code + share */}
+            {inspection?.verification_code && (
+              <div className="rounded-2xl border border-white/07 overflow-hidden" style={{ background: '#1C2840' }}>
+                {/* Code */}
+                <div className="px-5 pt-5 pb-4 border-b border-white/06">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-grotesk text-xs font-semibold text-white/50">Verification code</p>
+                    <button onClick={handleCopyCode}
+                      className="flex items-center gap-1.5 font-grotesk text-xs font-semibold transition-colors"
+                      style={{ color: codeCopied ? '#00D68F' : '#00C9A7' }}>
+                      {codeCopied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+                    </button>
+                  </div>
+                  <div className="rounded-xl py-4 text-center" style={{ background: 'rgba(0,201,167,0.08)' }}>
+                    <span className="font-fraunces text-3xl font-bold tracking-widest text-snap-teal">
+                      {inspection.verification_code}
+                    </span>
+                  </div>
+                  <p className="font-grotesk text-[10px] text-white/30 mt-2 text-center">
+                    Anyone can verify this report at snapsnagapp.com/verify
+                  </p>
+                </div>
+
+                {/* Share */}
+                <div className="px-5 py-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Share2 size={13} className="text-white/40" />
+                    <p className="font-grotesk text-xs font-semibold text-white/50">Send to your builder</p>
+                  </div>
+                  <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <p className="font-grotesk text-xs text-white/55 leading-relaxed italic">
+                      "Please find attached our SnapSnag inspection report dated{' '}
+                      {inspection?.completed_at ? formatDate(inspection.completed_at) : 'today'}.
+                      We request all failed items are addressed within 28 days. Verification code: {inspection.verification_code}."
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Review prompt */}
+            {downloaded && (
+              <div className="rounded-2xl border text-center py-5 px-5"
+                style={{ background: 'rgba(0,201,167,0.06)', borderColor: 'rgba(0,201,167,0.2)' }}>
+                <p className="text-2xl mb-2">⭐</p>
+                <h3 className="font-fraunces text-base font-bold text-white mb-1">Happy with SnapSnag?</h3>
+                <p className="font-grotesk text-xs text-white/45 mb-3">
+                  Leaving a review helps other homebuyers find us — 30 seconds.
+                </p>
+                <a href="https://g.page/r/snapsnag/review" target="_blank" rel="noopener noreferrer"
+                  className="btn-primary text-sm px-6 py-2 inline-block">
+                  Leave a review →
+                </a>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Share section */}
-        <div className="card border border-white/10 mb-6">
-          <h2 className="font-fraunces text-base font-bold text-white mb-1">
-            Send to your builder
-          </h2>
-          <p className="font-grotesk text-white/50 text-xs mb-4 leading-relaxed">
-            Download the PDF and email it to your builder or developer. Ask them to respond in
-            writing with a timeline for each failed item.
-          </p>
-          <div className="bg-white/5 rounded-lg px-4 py-3">
-            <p className="font-grotesk text-white/60 text-xs leading-relaxed italic">
-              "Please find attached our SnapSnag inspection report dated{' '}
-              {inspection?.completed_at
-                ? new Date(inspection.completed_at).toLocaleDateString('en-GB', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })
-                : 'today'}
-              . We request that all failed items are addressed within 28 days. Verification code:{' '}
-              {inspection?.verification_code ?? '—'}."
-            </p>
-          </div>
-        </div>
-
-        {/* Review prompt */}
-        {downloaded && (
-          <div className="card border border-snap-teal/30 bg-snap-teal/5 mb-6 text-center">
-            <div className="text-2xl mb-2">⭐</div>
-            <h3 className="font-fraunces text-base font-bold text-white mb-1">
-              Happy with SnapSnag?
-            </h3>
-            <p className="font-grotesk text-white/50 text-xs mb-3">
-              Leaving a review helps other homebuyers find us — it takes 30 seconds.
-            </p>
-            <a
-              href="https://g.page/r/snapsnag/review"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary text-sm px-6 py-2 inline-block"
-            >
-              Leave a review →
-            </a>
-          </div>
-        )}
-
-        </>)}
-
-        {/* Back to dashboard */}
-        <div className="text-center">
-          <Link href="/dashboard" className="font-grotesk text-sm text-white/40 hover:text-white/60">
-            ← Back to dashboard
-          </Link>
-        </div>
       </div>
-    </div>
+    </main>
   )
 }
