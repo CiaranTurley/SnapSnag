@@ -534,6 +534,12 @@ export default function InspectStartPage() {
           >
             Continue →
           </button>
+          <button
+            onClick={() => router.back()}
+            className="w-full min-h-[48px] flex items-center justify-center font-grotesk font-semibold rounded-xl border border-white/10 text-white/50 hover:text-white hover:border-white/20 transition-all mt-3"
+          >
+            ← Back
+          </button>
         </div>
       </div>
     )
@@ -570,6 +576,12 @@ export default function InspectStartPage() {
               style={{ fontWeight: 700, boxShadow: '0 0 24px rgba(0,201,167,0.25)' }}
             >
               I understand — start my inspection
+            </button>
+            <button
+              onClick={() => setStage('country')}
+              className="w-full min-h-[48px] flex items-center justify-center font-grotesk font-semibold rounded-xl border border-white/10 text-white/50 hover:text-white hover:border-white/20 transition-all mt-3"
+            >
+              ← Back
             </button>
           </div>
         </div>
