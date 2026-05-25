@@ -124,11 +124,11 @@ export default function ReportPage() {
 
       const { data: checklistItems } = await supabase
         .from('checklist_items')
-        .select('id, status, room, item_description, severity')
+        .select('id, response, room, item_description, severity')
         .eq('inspection_id', inspectionId)
 
-      const allItems = checklistItems ?? []
-      setItems(allItems.map((i: { id: string; status: string | null; room: string; item_description: string; severity: string | null }) => ({ id: i.id, status: i.status, room: i.room })))
+      const allItems = (checklistItems ?? []).map((i: { id: string; response: string | null; room: string; item_description: string; severity: string | null }) => ({ ...i, status: i.response }))
+      setItems(allItems.map((i: { id: string; status: string | null; room: string }) => ({ id: i.id, status: i.status, room: i.room })))
       setFailedItems(
         allItems
           .filter((i: { status: string | null }) => i.status === 'fail')

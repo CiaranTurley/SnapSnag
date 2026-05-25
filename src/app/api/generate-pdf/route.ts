@@ -51,6 +51,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch checklist items' }, { status: 500 })
     }
 
+    // DB column is `response`; ReportDocument expects `status`
+    const mappedItems = (items ?? []).map((i: Record<string, unknown>) => ({ ...i, status: i.response }))
+
     // Get country config
     const countryCode = (inspection.country as CountryCode) ?? 'IE'
     const cfg = COUNTRY_CONFIG[countryCode] ?? COUNTRY_CONFIG['IE']
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const doc = createElement(ReportDocument as any, {
       inspection,
-      items: items ?? [],
+      items: mappedItems,
       warrantyName: cfg.warrantyName,
       energyCertName: cfg.energyCertName,
       companyBranding,
