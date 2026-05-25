@@ -4,6 +4,7 @@ import {
   Text,
   View,
   Image,
+  Link,
   StyleSheet,
 } from '@react-pdf/renderer'
 
@@ -944,7 +945,9 @@ function RoomPage({
                     {item.photo_urls && item.photo_urls.length > 0 && (
                       <View style={styles.failCardPhotoRow}>
                         {item.photo_urls.slice(0, 4).map((url, i) => (
-                          <Image key={i} src={url} style={styles.failCardPhoto} />
+                          <Link key={i} src={url}>
+                            <Image src={url} style={styles.failCardPhoto} />
+                          </Link>
                         ))}
                       </View>
                     )}

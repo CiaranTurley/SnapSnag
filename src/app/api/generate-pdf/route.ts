@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       const signedUrls = await Promise.all(photos.map(async (url: string) => {
         const path = url.split('/inspection-photos/')[1]
         if (!path) return url
-        const { data } = await admin.storage.from('inspection-photos').createSignedUrl(path, 300)
+        const { data } = await admin.storage.from('inspection-photos').createSignedUrl(path, 604800)
         return data?.signedUrl ?? url
       }))
       return { ...i, status: i.response, note: i.written_note, photo_urls: signedUrls }
