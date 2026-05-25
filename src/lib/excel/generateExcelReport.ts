@@ -11,6 +11,7 @@ export interface ExcelChecklistItem {
   status: 'pass' | 'fail' | 'na' | null
   severity: string | null
   note: string | null
+  photo_urls?: string[] | null
 }
 
 export interface ExcelInspection {
@@ -121,6 +122,7 @@ export function generateExcelReport(
     'Status',
     'Severity',
     'Inspector Note',
+    'Photos',
   ]
 
   const checklistData = items
@@ -131,6 +133,7 @@ export function generateExcelReport(
       statusLabel(item.status),
       item.status === 'fail' ? severityLabel(item.severity) : '',
       item.note ?? '',
+      (item.photo_urls ?? []).join('\n'),
     ])
 
   const checklistSheet = XLSX.utils.aoa_to_sheet([checklistHeader, ...checklistData])
@@ -141,6 +144,7 @@ export function generateExcelReport(
     { wch: 14 },
     { wch: 12 },
     { wch: 40 },
+    { wch: 60 },
   ]
 
   // Freeze header row
@@ -155,6 +159,7 @@ export function generateExcelReport(
     'Defect Description',
     'Severity',
     'Inspector Note',
+    'Photos',
     'Status',
     'Date Raised',
     'Builder Response',
@@ -175,6 +180,7 @@ export function generateExcelReport(
       item.item_description,
       severityLabel(item.severity),
       item.note ?? '',
+      (item.photo_urls ?? []).join('\n'),
       'Open',       // Status — for builder to fill in
       formatDate(inspection.completed_at ?? inspection.created_at),
       '',           // Builder Response — blank for builder to fill in
@@ -188,6 +194,7 @@ export function generateExcelReport(
     { wch: 55 },
     { wch: 12 },
     { wch: 40 },
+    { wch: 60 },
     { wch: 12 },
     { wch: 16 },
     { wch: 35 },
