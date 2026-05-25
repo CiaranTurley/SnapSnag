@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const countryCode = (inspection.country as CountryCode) ?? 'IE'
     const cfg = COUNTRY_CONFIG[countryCode] ?? COUNTRY_CONFIG['IE']
 
-    const mappedItems = (items ?? []).map((i: Record<string, unknown>) => ({ ...i, status: i.response }))
+    const mappedItems = (items ?? []).map((i: Record<string, unknown>) => ({ ...i, status: i.response, note: i.written_note, photo_urls: i.photos }))
     const buffer = await generateWordReport(inspection, mappedItems, cfg.warrantyName)
 
     const filename = `SnapSnag-Report-${inspection.verification_code ?? inspectionId.slice(0, 8)}.docx`

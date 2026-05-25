@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     // DB column is `response`; ReportDocument expects `status`
-    const mappedItems = (items ?? []).map((i: Record<string, unknown>) => ({ ...i, status: i.response }))
+    const mappedItems = (items ?? []).map((i: Record<string, unknown>) => ({ ...i, status: i.response, note: i.written_note, photo_urls: i.photos }))
 
     // Get country config
     const countryCode = (inspection.country as CountryCode) ?? 'IE'
