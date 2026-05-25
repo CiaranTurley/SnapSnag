@@ -547,11 +547,28 @@ export default function ReportPage() {
                     <Share2 size={13} className="text-white/40" />
                     <p className="font-grotesk text-xs font-semibold text-white/50">Send to your builder</p>
                   </div>
+                  {/* Direct link */}
+                  <div className="rounded-xl px-4 py-3 mb-3 flex items-center justify-between gap-3" style={{ background: 'rgba(0,201,167,0.07)', border: '1px solid rgba(0,201,167,0.15)' }}>
+                    <p className="font-grotesk text-xs text-snap-teal font-mono truncate">
+                      snapsnagapp.com/builder/{inspection.verification_code}
+                    </p>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://snapsnagapp.com/builder/${inspection.verification_code}`)
+                        setCodeCopied(true)
+                        setTimeout(() => setCodeCopied(false), 2000)
+                      }}
+                      className="shrink-0 font-grotesk text-xs font-semibold transition-colors"
+                      style={{ color: codeCopied ? '#00D68F' : '#00C9A7' }}
+                    >
+                      {codeCopied ? <><Check size={12} className="inline mr-1" />Copied</> : <><Copy size={12} className="inline mr-1" />Copy link</>}
+                    </button>
+                  </div>
                   <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
                     <p className="font-grotesk text-xs text-white/55 leading-relaxed italic">
                       "Please find attached our SnapSnag inspection report dated{' '}
                       {inspection?.completed_at ? formatDate(inspection.completed_at) : 'today'}.
-                      We request all failed items are addressed within 28 days. Verification code: {inspection.verification_code}."
+                      We request all failed items are addressed within 28 days. Builder portal: snapsnagapp.com/builder/{inspection.verification_code}"
                     </p>
                   </div>
                 </div>

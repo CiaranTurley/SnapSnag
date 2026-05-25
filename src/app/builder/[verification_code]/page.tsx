@@ -154,21 +154,29 @@ export default function BuilderDashboardPage() {
     setInspection(insp)
 
     // Store builder session
-    localStorage.setItem(
-      `snapsnag_builder_${verificationCode}`,
-      JSON.stringify({ inspectionId: insp.id, accessedAt: new Date().toISOString() }),
-    )
+    const sessionKey = `snapsnag_builder_${verificationCode}`
+    const isFirstAccess = !localStorage.getItem(sessionKey)
+    localStorage.setItem(sessionKey, JSON.stringify({ inspectionId: insp.id, accessedAt: new Date().toISOString() }))
+
+    // Notify homeowner on first access only
+    if (isFirstAccess) {
+      fetch('/api/builder-access-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verificationCode }),
+      }).catch(() => {})
+    }
 
     // Load failed checklist items
     const { data: checklistItems } = await supabase
       .from('checklist_items')
-      .select('id, room, room_order, item_description, item_order, severity, note, photo_urls, voice_note_url')
+      .select('id, room, room_order, item_description, item_order, severity, written_note, photos, voice_note_url')
       .eq('inspection_id', insp.id)
-      .eq('status', 'fail')
+      .eq('response', 'fail')
       .order('room_order', { ascending: true })
       .order('item_order', { ascending: true })
 
-    setItems(checklistItems ?? [])
+    setItems((checklistItems ?? []).map((i: Record<string, unknown>) => ({ ...i, note: i.written_note, photo_urls: i.photos })))
 
     // Load builder portal items
     const { data: bItems } = await supabase
