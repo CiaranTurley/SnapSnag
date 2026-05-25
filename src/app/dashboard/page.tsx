@@ -151,7 +151,7 @@ export default async function DashboardPage() {
                       day: 'numeric', month: 'long', year: 'numeric'
                     })}
                   </p>
-                  <p className="font-grotesk text-xs text-white/20 mt-0.5 font-mono">{inspection.id}</p>
+                  <p className="font-grotesk text-xs text-white/20 mt-0.5 font-mono">ID: {inspection.id.slice(0, 8)}</p>
                 </div>
                 <div className="flex items-center gap-4">
                   {inspection.total_items > 0 && (
