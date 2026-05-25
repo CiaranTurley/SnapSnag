@@ -3,6 +3,7 @@ import {
   Packer,
   Paragraph,
   TextRun,
+  ImageRun,
   Table,
   TableRow,
   TableCell,
@@ -25,6 +26,17 @@ export interface WordChecklistItem {
   status: 'pass' | 'fail' | 'na' | null
   severity: string | null
   note: string | null
+  photo_urls?: string[] | null
+}
+
+async function fetchImageBuffer(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    return await res.arrayBuffer()
+  } catch {
+    return null
+  }
 }
 
 export interface WordInspection {
@@ -394,6 +406,14 @@ export async function generateWordReport(
 
       for (const item of roomFailed) {
         const sev = severityLabel(item.severity)
+
+        // Fetch photo buffers for embedding
+        const photoBuffers: ArrayBuffer[] = []
+        for (const url of (item.photo_urls ?? []).slice(0, 4)) {
+          const buf = await fetchImageBuffer(url)
+          if (buf) photoBuffers.push(buf)
+        }
+
         children.push(
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
@@ -416,6 +436,20 @@ export async function generateWordReport(
                                 new TextRun({ text: item.note, size: 17, color: '374151' }),
                               ],
                               spacing: { before: 60 },
+                            }),
+                          ]
+                        : []),
+                      ...(photoBuffers.length > 0
+                        ? [
+                            new Paragraph({
+                              children: photoBuffers.map(buf =>
+                                new ImageRun({
+                                  data: buf,
+                                  transformation: { width: 180, height: 135 },
+                                  type: 'jpg',
+                                })
+                              ),
+                              spacing: { before: 80 },
                             }),
                           ]
                         : []),
