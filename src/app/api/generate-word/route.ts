@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createSupabaseAdminClient } from '@/lib/supabase-admin'
 import { COUNTRY_CONFIG } from '@/lib/countryConfig'
 import { generateWordReport } from '@/lib/word/generateWordReport'
 import type { CountryCode } from '@/lib/countryConfig'
@@ -45,7 +46,17 @@ export async function POST(req: NextRequest) {
     const countryCode = (inspection.country as CountryCode) ?? 'IE'
     const cfg = COUNTRY_CONFIG[countryCode] ?? COUNTRY_CONFIG['IE']
 
-    const mappedItems = (items ?? []).map((i: Record<string, unknown>) => ({ ...i, status: i.response, note: i.written_note, photo_urls: i.photos }))
+    const admin = createSupabaseAdminClient()
+    const mappedItems = await Promise.all((items ?? []).map(async (i: Record<string, unknown>) => {
+      const photos = (i.photos as string[] | null) ?? []
+      const signedUrls = await Promise.all(photos.map(async (url: string) => {
+        const path = url.split('/inspection-photos/')[1]
+        if (!path) return url
+        const { data } = await admin.storage.from('inspection-photos').createSignedUrl(path, 300)
+        return data?.signedUrl ?? url
+      }))
+      return { ...i, status: i.response, note: i.written_note, photo_urls: signedUrls }
+    }))
     const buffer = await generateWordReport(inspection, mappedItems, cfg.warrantyName)
 
     const filename = `SnapSnag-Report-${inspection.verification_code ?? inspectionId.slice(0, 8)}.docx`

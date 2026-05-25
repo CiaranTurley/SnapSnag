@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { createElement } from 'react'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createSupabaseAdminClient } from '@/lib/supabase-admin'
 import { COUNTRY_CONFIG } from '@/lib/countryConfig'
 import { ReportDocument } from '@/lib/pdf/ReportDocument'
 import { getExpertSubscription } from '@/lib/expertUtils'
@@ -52,7 +53,18 @@ export async function POST(req: NextRequest) {
     }
 
     // DB column is `response`; ReportDocument expects `status`
-    const mappedItems = (items ?? []).map((i: Record<string, unknown>) => ({ ...i, status: i.response, note: i.written_note, photo_urls: i.photos }))
+    // Photo URLs in storage are private — generate signed URLs so react-pdf can fetch them
+    const admin = createSupabaseAdminClient()
+    const mappedItems = await Promise.all((items ?? []).map(async (i: Record<string, unknown>) => {
+      const photos = (i.photos as string[] | null) ?? []
+      const signedUrls = await Promise.all(photos.map(async (url: string) => {
+        const path = url.split('/inspection-photos/')[1]
+        if (!path) return url
+        const { data } = await admin.storage.from('inspection-photos').createSignedUrl(path, 300)
+        return data?.signedUrl ?? url
+      }))
+      return { ...i, status: i.response, note: i.written_note, photo_urls: signedUrls }
+    }))
 
     // Get country config
     const countryCode = (inspection.country as CountryCode) ?? 'IE'
