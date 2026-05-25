@@ -498,18 +498,24 @@ export default function ReportPage() {
 
             {/* Word + Excel — secondary */}
             <div className="flex gap-3">
-              <button onClick={handleDownloadWord} disabled={generatingWord}
-                className="flex-1 flex items-center justify-center gap-2 min-h-[46px] rounded-xl font-grotesk text-sm font-semibold transition-colors disabled:opacity-50"
-                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                {generatingWord ? <Spinner /> : <FileText size={14} className="text-blue-400" />}
-                {generatingWord ? 'Generating…' : 'Word (.docx)'}
-              </button>
-              <button onClick={handleDownloadExcel} disabled={generatingExcel}
-                className="flex-1 flex items-center justify-center gap-2 min-h-[46px] rounded-xl font-grotesk text-sm font-semibold transition-colors disabled:opacity-50"
-                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                {generatingExcel ? <Spinner /> : <FileSpreadsheet size={14} className="text-green-400" />}
-                {generatingExcel ? 'Generating…' : 'Excel (.xlsx)'}
-              </button>
+              <div className="flex-1 flex flex-col gap-1">
+                <button onClick={handleDownloadWord} disabled={generatingWord}
+                  className="w-full flex items-center justify-center gap-2 min-h-[46px] rounded-xl font-grotesk text-sm font-semibold transition-colors disabled:opacity-50"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  {generatingWord ? <Spinner /> : <FileText size={14} className="text-blue-400" />}
+                  {generatingWord ? 'Generating…' : 'Word (.docx)'}
+                </button>
+                <p className="font-grotesk text-center" style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>Best viewed on desktop</p>
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                <button onClick={handleDownloadExcel} disabled={generatingExcel}
+                  className="w-full flex items-center justify-center gap-2 min-h-[46px] rounded-xl font-grotesk text-sm font-semibold transition-colors disabled:opacity-50"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  {generatingExcel ? <Spinner /> : <FileSpreadsheet size={14} className="text-green-400" />}
+                  {generatingExcel ? 'Generating…' : 'Excel (.xlsx)'}
+                </button>
+                <p className="font-grotesk text-center" style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>Best viewed on desktop</p>
+              </div>
             </div>
 
             {/* Verification code + share */}
