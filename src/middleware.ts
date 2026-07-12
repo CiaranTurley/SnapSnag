@@ -25,7 +25,13 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const authResult = await Promise.race([
+    supabase.auth.getUser(),
+    new Promise<{ data: { user: null } }>(resolve =>
+      setTimeout(() => resolve({ data: { user: null } }), 3000)
+    ),
+  ])
+  const { data: { user } } = authResult
 
   // Redirect logged-out users away from protected pages
   // /inspect/start (questionnaire) is intentionally public — no sign-up required to begin
